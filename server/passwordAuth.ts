@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { getDb } from './db';
 import { users, passwordResetTokens } from '../drizzle/schema';
 import { eq, and, gt } from 'drizzle-orm';
+import { upsertUser } from './db';
 
 const SALT_ROUNDS = 10;
 const RESET_TOKEN_EXPIRY_HOURS = 24;
@@ -200,4 +201,67 @@ export async function resetPassword(userId: number, newPassword: string): Promis
  */
 export async function setUserPassword(userId: number, password: string): Promise<boolean> {
   return resetPassword(userId, password);
+}
+
+/**
+ * Ensure an owner/admin account has a usable password in environments where
+ * password reset email delivery may not be configured yet.
+ */
+export async function bootstrapOwnerPassword(email: string, password: string): Promise<boolean> {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail || !password) {
+    return false;
+  }
+
+  const db = await getDb();
+  if (!db) {
+    console.error('[PasswordAuth] Database not available for owner bootstrap');
+    return false;
+  }
+
+  try {
+    let result = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, normalizedEmail))
+      .limit(1);
+
+    if (result.length === 0) {
+      await upsertUser({
+        openId: `email:${normalizedEmail}`,
+        email: normalizedEmail,
+        name: normalizedEmail,
+        loginMethod: 'password',
+      });
+
+      result = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, normalizedEmail))
+        .limit(1);
+    }
+
+    if (result.length === 0) {
+      console.error('[PasswordAuth] Failed to create owner account for bootstrap:', normalizedEmail);
+      return false;
+    }
+
+    const owner = result[0];
+    const hashedPassword = await hashPassword(password);
+
+    await db
+      .update(users)
+      .set({
+        password: hashedPassword,
+        loginMethod: 'password',
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, owner.id));
+
+    console.log('[PasswordAuth] Owner password bootstrap complete for:', normalizedEmail);
+    return true;
+  } catch (error) {
+    console.error('[PasswordAuth] Error bootstrapping owner password:', error);
+    return false;
+  }
 }

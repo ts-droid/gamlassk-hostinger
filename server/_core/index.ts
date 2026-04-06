@@ -10,6 +10,7 @@ import { configureGoogleAuth } from "../googleAuth";
 import { createGoogleAuthRoutes } from "../googleAuthRoutes";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
+import { ENV } from "./env";
 import { serveStatic, setupVite } from "./vite";
 import * as cron from 'node-cron';
 import { sendPaymentReminders } from '../cron/paymentReminders';
@@ -42,6 +43,12 @@ async function startServer() {
   console.log(`[Startup] NODE_ENV=${process.env.NODE_ENV || "undefined"}`);
   console.log(`[Startup] PORT=${preferredPort}`);
   console.log(`[Startup] Database configured=${process.env.DATABASE_URL ? "yes" : "no"}`);
+
+  if (ENV.ownerEmail && ENV.adminPassword) {
+    const { bootstrapOwnerPassword } = await import("../passwordAuth");
+    const bootstrapped = await bootstrapOwnerPassword(ENV.ownerEmail, ENV.adminPassword);
+    console.log(`[Startup] Owner password bootstrap=${bootstrapped ? "ok" : "skipped"}`);
+  }
 
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));

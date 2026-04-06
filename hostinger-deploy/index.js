@@ -297,6 +297,7 @@ var init_env = __esm({
       cookieSecret: process.env.JWT_SECRET ?? "",
       databaseUrl: process.env.DATABASE_URL ?? "",
       ownerEmail: (process.env.OWNER_EMAIL ?? "").trim().toLowerCase(),
+      adminPassword: process.env.ADMIN_PASSWORD ?? "",
       isProduction: process.env.NODE_ENV === "production",
       forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
       forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? ""
@@ -842,6 +843,7 @@ var init_storage = __esm({
 var passwordAuth_exports = {};
 __export(passwordAuth_exports, {
   authenticateWithPassword: () => authenticateWithPassword,
+  bootstrapOwnerPassword: () => bootstrapOwnerPassword,
   generatePasswordResetToken: () => generatePasswordResetToken,
   hashPassword: () => hashPassword,
   resetPassword: () => resetPassword,
@@ -967,12 +969,52 @@ async function resetPassword(userId, newPassword) {
 async function setUserPassword(userId, password) {
   return resetPassword(userId, password);
 }
+async function bootstrapOwnerPassword(email, password) {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail || !password) {
+    return false;
+  }
+  const db = await getDb();
+  if (!db) {
+    console.error("[PasswordAuth] Database not available for owner bootstrap");
+    return false;
+  }
+  try {
+    let result = await db.select().from(users).where(eq2(users.email, normalizedEmail)).limit(1);
+    if (result.length === 0) {
+      await upsertUser({
+        openId: `email:${normalizedEmail}`,
+        email: normalizedEmail,
+        name: normalizedEmail,
+        loginMethod: "password"
+      });
+      result = await db.select().from(users).where(eq2(users.email, normalizedEmail)).limit(1);
+    }
+    if (result.length === 0) {
+      console.error("[PasswordAuth] Failed to create owner account for bootstrap:", normalizedEmail);
+      return false;
+    }
+    const owner = result[0];
+    const hashedPassword = await hashPassword(password);
+    await db.update(users).set({
+      password: hashedPassword,
+      loginMethod: "password",
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq2(users.id, owner.id));
+    console.log("[PasswordAuth] Owner password bootstrap complete for:", normalizedEmail);
+    return true;
+  } catch (error) {
+    console.error("[PasswordAuth] Error bootstrapping owner password:", error);
+    return false;
+  }
+}
 var SALT_ROUNDS, RESET_TOKEN_EXPIRY_HOURS;
 var init_passwordAuth = __esm({
   "server/passwordAuth.ts"() {
     "use strict";
     init_db();
     init_schema();
+    init_db();
     SALT_ROUNDS = 10;
     RESET_TOKEN_EXPIRY_HOURS = 24;
   }
@@ -3076,6 +3118,9 @@ async function createContext(opts) {
   };
 }
 
+// server/_core/index.ts
+init_env();
+
 // server/_core/vite.ts
 import express from "express";
 import fs from "fs";
@@ -3155,6 +3200,11 @@ async function startServer() {
   console.log(`[Startup] NODE_ENV=${process.env.NODE_ENV || "undefined"}`);
   console.log(`[Startup] PORT=${preferredPort}`);
   console.log(`[Startup] Database configured=${process.env.DATABASE_URL ? "yes" : "no"}`);
+  if (ENV.ownerEmail && ENV.adminPassword) {
+    const { bootstrapOwnerPassword: bootstrapOwnerPassword2 } = await Promise.resolve().then(() => (init_passwordAuth(), passwordAuth_exports));
+    const bootstrapped = await bootstrapOwnerPassword2(ENV.ownerEmail, ENV.adminPassword);
+    console.log(`[Startup] Owner password bootstrap=${bootstrapped ? "ok" : "skipped"}`);
+  }
   app.use(express2.json({ limit: "50mb" }));
   app.use(express2.urlencoded({ limit: "50mb", extended: true }));
   app.use(cookieParser());
