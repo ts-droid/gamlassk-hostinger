@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import { toast } from "sonner";
+import { APP_LOGO } from "@/const";
 
 export default function Events() {
   const { data: eventsData } = trpc.events.list.useQuery();
@@ -92,7 +93,7 @@ export default function Events() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <img src="/logo.png" alt="Gamla SSK Logo" className="h-16 w-16" />
+              <img src={APP_LOGO} alt="Gamla SSK Logo" className="h-16 w-16" />
               <div>
                 <h1 className="text-2xl font-bold">Kalender & Evenemang</h1>
                 <p className="text-sm opacity-90">Föreningen Gamla SSK-are</p>

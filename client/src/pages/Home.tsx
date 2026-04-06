@@ -13,6 +13,7 @@ import { useCMSContent, useSiteSettings, useBoardMembers } from "@/hooks/useCMSC
 import { UnifiedLoginDialog } from "@/components/UnifiedLoginDialog";
 import { BankIDErrorAlert } from "@/components/BankIDErrorAlert";
 import { FolkspelSection } from "@/components/FolkspelSection";
+import { APP_LOGO } from "@/const";
 
 // Upcoming Events Component
 function UpcomingEventsSection() {
@@ -120,7 +121,7 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <img 
-                src={getSetting("site_logo", "/logo.png")} 
+                src={APP_LOGO}
                 alt="Gamla SSK Logo" 
                 className="h-20 w-20 md:h-24 md:w-24" 
               />
