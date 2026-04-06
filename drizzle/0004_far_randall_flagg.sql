@@ -1,1 +1,0 @@
-ALTER TABLE `roles` MODIFY COLUMN `permissions` json NOT NULL;
