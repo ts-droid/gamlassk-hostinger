@@ -8,7 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
 import { Loader2 } from "lucide-react";
 import { PasswordLoginDialog } from "./PasswordLoginDialog";
 
@@ -19,20 +18,14 @@ interface UnifiedLoginDialogProps {
 
 export function UnifiedLoginDialog({ open, onOpenChange }: UnifiedLoginDialogProps) {
   const [loading, setLoading] = useState<string | null>(null);
-  const [showPasswordLogin, setShowPasswordLogin] = useState(false);
   const { data: providers } = trpc.auth.providers.useQuery();
-  
-  // Show password login dialog if password provider is available and selected
-  if (showPasswordLogin && providers?.password) {
+
+  // Prefer the simplest flow: open the email/password form directly when available.
+  if (providers?.password) {
     return (
       <PasswordLoginDialog
         open={open}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) {
-            setShowPasswordLogin(false);
-          }
-          onOpenChange(isOpen);
-        }}
+        onOpenChange={onOpenChange}
       />
     );
   }
@@ -53,41 +46,6 @@ export function UnifiedLoginDialog({ open, onOpenChange }: UnifiedLoginDialogPro
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* Password Login */}
-          {providers?.password && (
-            <>
-              <Button
-                variant="default"
-                className="w-full h-12 text-base"
-                onClick={() => setShowPasswordLogin(true)}
-                disabled={loading !== null}
-              >
-                <svg
-                  className="mr-2 h-5 w-5"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
-                Logga in med lösenord
-              </Button>
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <Separator />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
-                    Eller
-                  </span>
-                </div>
-              </div>
-            </>
-          )}
-
-
           {/* Google Login */}
           {providers?.google && (
             <Button

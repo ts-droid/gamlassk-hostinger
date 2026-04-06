@@ -128,6 +128,7 @@ export function PasswordLoginDialog({ open, onOpenChange }: PasswordLoginDialogP
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loginMutation.isPending}
                 autoComplete="email"
+                autoFocus
               />
             </div>
 
