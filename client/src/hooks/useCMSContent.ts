@@ -82,7 +82,7 @@ export function useSiteBranding() {
   const { getSetting, isLoading } = useSiteSettings();
 
   return {
-    siteLogo: getSetting("site_logo", "/logo.gif"),
+    siteLogo: getSetting("site_header_logo", "/logo-wreath.png"),
     siteName: getSetting("site_name", "Föreningen Gamla SSK-are"),
     isLoading,
   };

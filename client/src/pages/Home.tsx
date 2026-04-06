@@ -9,7 +9,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Link } from "wouter";
 import { Calendar, Users, Trophy, Mail, Phone, FileText, CreditCard } from "lucide-react";
-import { useCMSContent, useSiteSettings, useBoardMembers } from "@/hooks/useCMSContent";
+import { useCMSContent, useSiteSettings, useBoardMembers, useSiteBranding } from "@/hooks/useCMSContent";
 import { UnifiedLoginDialog } from "@/components/UnifiedLoginDialog";
 import { BankIDErrorAlert } from "@/components/BankIDErrorAlert";
 import { FolkspelSection } from "@/components/FolkspelSection";
@@ -85,6 +85,7 @@ export default function Home() {
   const { data: latestNews } = trpc.news.latest.useQuery();
   const { getContent, isLoading: contentLoading } = useCMSContent("home");
   const { getSetting, isLoading: settingsLoading } = useSiteSettings();
+  const { siteLogo } = useSiteBranding();
   const { members, isLoading: membersLoading } = useBoardMembers();
   
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
@@ -120,7 +121,7 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <img 
-                src={getSetting("site_logo", "/logo.gif")}
+                src={siteLogo}
                 alt="Gamla SSK Logo" 
                 className="h-20 w-20 md:h-24 md:w-24" 
               />
