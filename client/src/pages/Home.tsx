@@ -12,6 +12,7 @@ import { Calendar, Users, Trophy, Mail, Phone, FileText, CreditCard } from "luci
 import { useCMSContent, useSiteSettings, useBoardMembers } from "@/hooks/useCMSContent";
 import { UnifiedLoginDialog } from "@/components/UnifiedLoginDialog";
 import { BankIDErrorAlert } from "@/components/BankIDErrorAlert";
+import { FolkspelSection } from "@/components/FolkspelSection";
 
 // Upcoming Events Component
 function UpcomingEventsSection() {
@@ -277,23 +278,7 @@ export default function Home() {
         </section>
       )}
 
-      {/* Bingo Banner */}
-      <section className="py-12 bg-[oklch(0.85_0.12_90)]">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold text-[oklch(0.25_0.08_250)] mb-4">
-            Stöd SSK genom folkspels-bingolotter!
-          </h2>
-          <p className="text-lg text-gray-700 mb-6">
-            Köp bingolotter och lotter online - en del av intäkterna går direkt till föreningen.
-            Du kan också köpa lotter på ICA Maxi Vasa, Moraberg eller Stora Coop Vasa.
-          </p>
-          <Link href="/folkspel">
-            <Button size="lg" className="bg-[oklch(0.25_0.08_250)] text-white hover:bg-[oklch(0.20_0.08_250)]">
-              Köp lotter online
-            </Button>
-          </Link>
-        </div>
-      </section>
+      <FolkspelSection />
 
       {/* Membership Form */}
       <section id="bli-medlem" className="py-16 bg-white">
