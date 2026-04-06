@@ -1,0 +1,62 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1763130344533,
+      "tag": "0000_light_strong_guy",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1763130418452,
+      "tag": "0001_fluffy_thaddeus_ross",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1763130597755,
+      "tag": "0002_oval_viper",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1763132531525,
+      "tag": "0003_handy_jackal",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1763132547177,
+      "tag": "0004_far_randall_flagg",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1763133977631,
+      "tag": "0005_groovy_vivisector",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1763134732316,
+      "tag": "0006_omniscient_vector",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1763135521002,
+      "tag": "0007_soft_valeria_richards",
+      "breakpoints": true
+    }
+  ]
+}

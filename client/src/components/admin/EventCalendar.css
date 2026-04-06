@@ -1,0 +1,65 @@
+/* Custom styling for react-big-calendar to match our design */
+.rbc-calendar {
+  font-family: inherit;
+}
+
+.rbc-header {
+  padding: 10px 3px;
+  font-weight: 600;
+  color: oklch(0.25 0.08 250);
+  border-bottom: 2px solid oklch(0.25 0.08 250);
+}
+
+.rbc-today {
+  background-color: oklch(0.95 0.02 250);
+}
+
+.rbc-event {
+  background-color: oklch(0.25 0.08 250);
+  border: none;
+  border-radius: 4px;
+  padding: 2px 5px;
+}
+
+.rbc-event:hover {
+  background-color: oklch(0.35 0.08 250);
+}
+
+.rbc-selected {
+  background-color: oklch(0.45 0.08 250) !important;
+}
+
+.rbc-toolbar button {
+  color: oklch(0.25 0.08 250);
+  border: 1px solid oklch(0.25 0.08 250);
+  padding: 6px 12px;
+  border-radius: 4px;
+  background: white;
+  font-weight: 500;
+}
+
+.rbc-toolbar button:hover {
+  background-color: oklch(0.95 0.02 250);
+}
+
+.rbc-toolbar button.rbc-active {
+  background-color: oklch(0.25 0.08 250);
+  color: white;
+}
+
+.rbc-month-view {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.rbc-date-cell {
+  padding: 5px;
+}
+
+.rbc-off-range {
+  color: #9ca3af;
+}
+
+.rbc-off-range-bg {
+  background-color: #f9fafb;
+}

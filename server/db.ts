@@ -1,0 +1,548 @@
+import { eq, and, sql, desc } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/mysql2";
+import { InsertUser, users, documents, InsertDocument } from "../drizzle/schema";
+import { ENV } from './_core/env';
+
+let _db: ReturnType<typeof drizzle> | null = null;
+
+// Lazily create the drizzle instance so local tooling can run without a DB.
+export async function getDb() {
+  if (!_db && process.env.DATABASE_URL) {
+    try {
+      _db = drizzle(process.env.DATABASE_URL);
+    } catch (error) {
+      console.warn("[Database] Failed to connect:", error);
+      _db = null;
+    }
+  }
+  return _db;
+}
+
+export async function upsertUser(user: InsertUser): Promise<void> {
+  if (!user.openId) {
+    throw new Error("User openId is required for upsert");
+  }
+
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot upsert user: database not available");
+    return;
+  }
+
+  try {
+    const values: InsertUser = {
+      openId: user.openId,
+    };
+    const updateSet: Record<string, unknown> = {};
+
+    // Handle password field
+    if (user.password !== undefined) {
+      values.password = user.password ?? null;
+      updateSet.password = user.password ?? null;
+    }
+
+    const textFields = ["name", "email", "loginMethod"] as const;
+    type TextField = (typeof textFields)[number];
+
+    const assignNullable = (field: TextField) => {
+      const value = user[field];
+      if (value === undefined) return;
+      const normalized = value ?? null;
+      values[field] = normalized;
+      updateSet[field] = normalized;
+    };
+
+    textFields.forEach(assignNullable);
+
+    if (user.lastSignedIn !== undefined) {
+      values.lastSignedIn = user.lastSignedIn;
+      updateSet.lastSignedIn = user.lastSignedIn;
+    }
+    if (user.role !== undefined) {
+      values.role = user.role;
+      updateSet.role = user.role;
+    } else if (user.openId === ENV.ownerOpenId) {
+      values.role = 'admin';
+      updateSet.role = 'admin';
+    }
+
+    if (!values.lastSignedIn) {
+      values.lastSignedIn = new Date();
+    }
+
+    if (Object.keys(updateSet).length === 0) {
+      updateSet.lastSignedIn = new Date();
+    }
+
+    await db.insert(users).values(values).onDuplicateKeyUpdate({
+      set: updateSet,
+    });
+  } catch (error) {
+    console.error("[Database] Failed to upsert user:", error);
+    throw error;
+  }
+}
+
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get user: database not available");
+    return undefined;
+  }
+
+  const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getUserByOpenId(openId: string) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get user: database not available");
+    return undefined;
+  }
+
+  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+
+  return result.length > 0 ? result[0] : undefined;
+}
+
+// TODO: add feature queries here as your schema grows.
+
+/**
+ * Check if a user has a specific permission
+ * @param userId - The user's ID
+ * @param permission - The permission to check (e.g., 'manage_news', 'manage_members')
+ * @returns true if user has the permission, false otherwise
+ */
+export async function userHasPermission(userId: number, permission: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot check permission: database not available");
+    return false;
+  }
+
+  try {
+    const { users, roles } = await import("../drizzle/schema");
+    
+    // Get user with their role
+    const userResult = await db
+      .select({
+        user: users,
+        role: roles,
+      })
+      .from(users)
+      .leftJoin(roles, eq(users.roleId, roles.id))
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (userResult.length === 0 || !userResult[0].role) {
+      return false;
+    }
+
+    const role = userResult[0].role;
+    
+    // Check if role has manage_all permission (huvudadmin)
+    if (role.permissions.includes('manage_all')) {
+      return true;
+    }
+    
+    // Check if role has the specific permission
+    return role.permissions.includes(permission);
+  } catch (error) {
+    console.error("[Database] Failed to check permission:", error);
+    return false;
+  }
+}
+
+/**
+ * Get user's role with permissions
+ * @param userId - The user's ID
+ * @returns User's role object or null
+ */
+export async function getUserRole(userId: number) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get user role: database not available");
+    return null;
+  }
+
+  try {
+    const { users, roles } = await import("../drizzle/schema");
+    
+    const result = await db
+      .select({
+        role: roles,
+      })
+      .from(users)
+      .leftJoin(roles, eq(users.roleId, roles.id))
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    return result.length > 0 ? result[0].role : null;
+  } catch (error) {
+    console.error("[Database] Failed to get user role:", error);
+    return null;
+  }
+}
+
+
+/**
+ * Generate unique member number in format SSK-YYYY-XXXX
+ */
+export async function generateMemberNumber(): Promise<string> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const currentYear = new Date().getFullYear();
+  const prefix = `SSK-${currentYear}-`;
+  
+  // Find the highest member number for this year
+  const searchPattern = `${prefix}%`;
+  const members = await db
+    .select({ membershipNumber: users.membershipNumber })
+    .from(users)
+    .where(sql`${users.membershipNumber} LIKE ${searchPattern}`)
+    .orderBy(desc(users.membershipNumber))
+    .limit(1);
+  
+  if (members.length === 0) {
+    return `${prefix}0001`;
+  }
+  
+  // Extract the number part and increment
+  const lastNumber = members[0].membershipNumber;
+  if (!lastNumber) return `${prefix}0001`;
+  
+  const numberPart = parseInt(lastNumber.split('-')[2] || '0');
+  const nextNumber = (numberPart + 1).toString().padStart(4, '0');
+  
+  return `${prefix}${nextNumber}`;
+}
+
+/**
+ * Get all members with optional filtering
+ */
+export async function getMembers(filters?: {
+  status?: 'pending' | 'active' | 'inactive';
+  memberType?: 'ordinarie' | 'hedersmedlem' | 'stodmedlem';
+  paymentStatus?: 'paid' | 'unpaid' | 'exempt';
+  search?: string;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  let query = db.select().from(users);
+  
+  if (filters?.status) {
+    query = query.where(eq(users.membershipStatus, filters.status)) as any;
+  }
+  
+  if (filters?.memberType) {
+    query = query.where(eq(users.memberType, filters.memberType)) as any;
+  }
+  
+  if (filters?.paymentStatus) {
+    query = query.where(eq(users.paymentStatus, filters.paymentStatus)) as any;
+  }
+  
+  // Search by name, email, or member number
+  if (filters?.search) {
+    const searchTerm = `%${filters.search}%`;
+    query = query.where(
+      sql`${users.name} LIKE ${searchTerm} OR ${users.email} LIKE ${searchTerm} OR ${users.membershipNumber} LIKE ${searchTerm}`
+    ) as any;
+  }
+  
+  return await query;
+}
+
+/**
+ * Get member by ID with full details
+ */
+export async function getMemberById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
+/**
+ * Update member information (admin only)
+ */
+export async function updateMember(id: number, data: Partial<InsertUser>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(users).set(data).where(eq(users.id, id));
+  return { success: true };
+}
+
+/**
+ * Get members for directory (limited info, only visible members)
+ */
+export async function getMembersForDirectory() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      phone: users.phone,
+      membershipNumber: users.membershipNumber,
+      memberType: users.memberType,
+    })
+    .from(users)
+    .where(
+      sql`${users.membershipStatus} = 'active' AND ${users.showInDirectory} = 1`
+    );
+}
+
+
+/**
+ * Check if a user is verified as a member based on email or personnummer
+ */
+export async function verifyMemberStatus(userId: number): Promise<{
+  isMember: boolean;
+  memberInfo: typeof users.$inferSelect | null;
+}> {
+  const db = await getDb();
+  if (!db) {
+    return { isMember: false, memberInfo: null };
+  }
+
+  try {
+    const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    
+    if (!user || user.length === 0) {
+      return { isMember: false, memberInfo: null };
+    }
+
+    const userRecord = user[0];
+    
+    // Check if user has member status
+    const isMember = userRecord.membershipStatus === 'active';
+    
+    return {
+      isMember,
+      memberInfo: isMember ? userRecord : null,
+    };
+  } catch (error) {
+    console.error('[Database] Failed to verify member status:', error);
+    return { isMember: false, memberInfo: null };
+  }
+}
+
+/**
+ * Link a user account to member record by email or personnummer
+ */
+export async function linkUserToMember(openId: string, email?: string, personnummer?: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) {
+    return false;
+  }
+
+  try {
+    // Find existing member by email or personnummer
+    let existingMember = null;
+    
+    if (email) {
+      const result = await db.select().from(users)
+        .where(and(
+          eq(users.email, email),
+          eq(users.membershipStatus, 'active')
+        ))
+        .limit(1);
+      existingMember = result[0];
+    }
+    
+    if (!existingMember && personnummer) {
+      const result = await db.select().from(users)
+        .where(and(
+          eq(users.personnummer, personnummer),
+          eq(users.membershipStatus, 'active')
+        ))
+        .limit(1);
+      existingMember = result[0];
+    }
+
+    if (existingMember) {
+      // Update existing member with new openId
+      await db.update(users)
+        .set({ openId, lastSignedIn: new Date() })
+        .where(eq(users.id, existingMember.id));
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.error('[Database] Failed to link user to member:', error);
+    return false;
+  }
+}
+
+
+// Event management helpers
+export async function getUpcomingEvents(limit?: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const { events } = await import('../drizzle/schema');
+  const { gte } = await import('drizzle-orm');
+
+  const query = db
+    .select()
+    .from(events)
+    .where(gte(events.eventDate, new Date()))
+    .orderBy(events.eventDate);
+
+  if (limit) {
+    return await query.limit(limit);
+  }
+
+  return await query;
+}
+
+export async function getEventWithRegistrations(eventId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const { events, eventRegistrations, users } = await import('../drizzle/schema');
+  const { eq } = await import('drizzle-orm');
+
+  const event = await db.select().from(events).where(eq(events.id, eventId)).limit(1);
+  if (event.length === 0) return null;
+
+  const registrations = await db
+    .select({
+      id: eventRegistrations.id,
+      status: eventRegistrations.status,
+      notes: eventRegistrations.notes,
+      registeredAt: eventRegistrations.registeredAt,
+      user: {
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        phone: users.phone,
+      },
+    })
+    .from(eventRegistrations)
+    .leftJoin(users, eq(eventRegistrations.userId, users.id))
+    .where(eq(eventRegistrations.eventId, eventId))
+    .orderBy(eventRegistrations.registeredAt);
+
+  return {
+    ...event[0],
+    registrations,
+    registeredCount: registrations.filter(r => r.status === 'registered').length,
+    waitlistCount: registrations.filter(r => r.status === 'waitlist').length,
+  };
+}
+
+export async function getUserEventRegistration(eventId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const { eventRegistrations } = await import('../drizzle/schema');
+  const { eq, and } = await import('drizzle-orm');
+
+  const result = await db
+    .select()
+    .from(eventRegistrations)
+    .where(and(eq(eventRegistrations.eventId, eventId), eq(eventRegistrations.userId, userId)))
+    .limit(1);
+
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function getUserRegisteredEvents(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const { events, eventRegistrations } = await import('../drizzle/schema');
+  const { eq, and, ne } = await import('drizzle-orm');
+
+  return await db
+    .select({
+      event: events,
+      registration: eventRegistrations,
+    })
+    .from(eventRegistrations)
+    .leftJoin(events, eq(eventRegistrations.eventId, events.id))
+    .where(and(eq(eventRegistrations.userId, userId), ne(eventRegistrations.status, 'cancelled')))
+    .orderBy(events.eventDate);
+}
+
+
+// Document management helpers
+export async function getAllDocuments() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(documents).orderBy(desc(documents.createdAt));
+}
+
+export async function getDocumentsByCategory(category: any) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(documents).where(eq(documents.category, category as any)).orderBy(desc(documents.createdAt));
+}
+
+export async function getDocumentById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(documents).where(eq(documents.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function createDocument(doc: InsertDocument) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(documents).values(doc);
+}
+
+export async function deleteDocument(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(documents).where(eq(documents.id, id));
+}
+
+
+// Implementation tasks helpers
+export async function getAllImplementationTasks() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const { implementationTasks } = await import("../drizzle/schema");
+  return await db.select().from(implementationTasks).orderBy(implementationTasks.phase, implementationTasks.order);
+}
+
+export async function getImplementationTasksByPhase(phase: string) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const { implementationTasks } = await import("../drizzle/schema");
+  const { eq } = await import("drizzle-orm");
+  return await db.select().from(implementationTasks).where(eq(implementationTasks.phase, phase)).orderBy(implementationTasks.order);
+}
+
+export async function updateImplementationTaskStatus(taskId: number, status: "pending" | "in_progress" | "completed", userId?: number) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const { implementationTasks } = await import("../drizzle/schema");
+  const { eq } = await import("drizzle-orm");
+  
+  const updateData: any = { status };
+  if (status === "completed") {
+    updateData.completedAt = new Date();
+    if (userId) updateData.completedBy = userId;
+  } else {
+    updateData.completedAt = null;
+    updateData.completedBy = null;
+  }
+  
+  await db.update(implementationTasks).set(updateData).where(eq(implementationTasks.id, taskId));
+  return await db.select().from(implementationTasks).where(eq(implementationTasks.id, taskId)).limit(1).then(rows => rows[0]);
+}
