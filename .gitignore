@@ -1,0 +1,6 @@
+node_modules/
+dist/
+dist-cjs/
+dist-bundled/
+.env
+*.log
