@@ -14,6 +14,7 @@ import { ENV } from "./env";
 import { serveStatic, setupVite } from "./vite";
 import * as cron from 'node-cron';
 import { sendPaymentReminders } from '../cron/paymentReminders';
+import { ensureSchemaCompatibility } from "../db";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -47,6 +48,10 @@ async function startServer() {
   console.log(`[Startup] ADMIN_PASSWORD configured=${ENV.adminPassword ? "yes" : "no"}`);
   if (ENV.ownerEmail) {
     console.log(`[Startup] OWNER_EMAIL value=${ENV.ownerEmail}`);
+  }
+
+  if (process.env.DATABASE_URL) {
+    await ensureSchemaCompatibility();
   }
 
   if (ENV.ownerEmail && ENV.adminPassword) {

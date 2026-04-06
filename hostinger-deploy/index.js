@@ -310,6 +310,7 @@ var db_exports = {};
 __export(db_exports, {
   createDocument: () => createDocument,
   deleteDocument: () => deleteDocument,
+  ensureSchemaCompatibility: () => ensureSchemaCompatibility,
   generateMemberNumber: () => generateMemberNumber,
   getAllDocuments: () => getAllDocuments,
   getDb: () => getDb,
@@ -332,6 +333,54 @@ __export(db_exports, {
 });
 import { eq, and, sql, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import mysql from "mysql2/promise";
+function parseDatabaseUrl(databaseUrl) {
+  const parsed = new URL(databaseUrl);
+  return {
+    host: parsed.hostname,
+    port: parsed.port ? Number(parsed.port) : 3306,
+    user: decodeURIComponent(parsed.username),
+    password: decodeURIComponent(parsed.password),
+    database: parsed.pathname.replace(/^\//, "")
+  };
+}
+async function ensureSchemaCompatibility() {
+  if (!ENV.databaseUrl) {
+    console.warn("[Database] Skipping schema compatibility check: DATABASE_URL missing");
+    return;
+  }
+  let connection = null;
+  try {
+    connection = await mysql.createConnection(parseDatabaseUrl(ENV.databaseUrl));
+    const [userColumnsRows] = await connection.query("SHOW COLUMNS FROM `users`");
+    const existingUserColumns = new Set(
+      Array.isArray(userColumnsRows) ? userColumnsRows.map((row) => String(row.Field)) : []
+    );
+    for (const [columnName, statement] of USER_SCHEMA_PATCHES) {
+      if (existingUserColumns.has(columnName)) {
+        continue;
+      }
+      console.log(`[Database] Adding missing users column: ${columnName}`);
+      await connection.query(`ALTER TABLE \`users\` ${statement}`);
+    }
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS \`password_reset_tokens\` (
+        \`id\` int AUTO_INCREMENT NOT NULL,
+        \`userId\` int NOT NULL,
+        \`token\` varchar(255) NOT NULL,
+        \`expiresAt\` timestamp NOT NULL,
+        \`used\` int NOT NULL DEFAULT 0,
+        \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+        PRIMARY KEY (\`id\`)
+      )
+    `);
+    console.log("[Database] Schema compatibility check complete");
+  } catch (error) {
+    console.error("[Database] Schema compatibility check failed:", error);
+  } finally {
+    await connection?.end();
+  }
+}
 async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
@@ -638,13 +687,26 @@ async function deleteDocument(id) {
   if (!db) throw new Error("Database not available");
   await db.delete(documents).where(eq(documents.id, id));
 }
-var _db;
+var _db, USER_SCHEMA_PATCHES;
 var init_db = __esm({
   "server/db.ts"() {
     "use strict";
     init_schema();
     init_env();
     _db = null;
+    USER_SCHEMA_PATCHES = [
+      ["password", "ADD COLUMN `password` varchar(255)"],
+      ["roleId", "ADD COLUMN `roleId` int"],
+      ["personnummer", "ADD COLUMN `personnummer` varchar(13)"],
+      ["streetAddress", "ADD COLUMN `streetAddress` text"],
+      ["postalCode", "ADD COLUMN `postalCode` varchar(10)"],
+      ["city", "ADD COLUMN `city` varchar(100)"],
+      ["joinYear", "ADD COLUMN `joinYear` int"],
+      ["memberType", "ADD COLUMN `memberType` enum('ordinarie','hedersmedlem','stodmedlem') DEFAULT 'ordinarie'"],
+      ["paymentStatus", "ADD COLUMN `paymentStatus` enum('paid','unpaid','exempt') DEFAULT 'unpaid'"],
+      ["paymentYear", "ADD COLUMN `paymentYear` int"],
+      ["showInDirectory", "ADD COLUMN `showInDirectory` int NOT NULL DEFAULT 1"]
+    ];
   }
 });
 
@@ -3175,6 +3237,7 @@ function serveStatic(app) {
 }
 
 // server/_core/index.ts
+init_db();
 function isPortAvailable(port) {
   return new Promise((resolve) => {
     const server = net.createServer();
@@ -3204,6 +3267,9 @@ async function startServer() {
   console.log(`[Startup] ADMIN_PASSWORD configured=${ENV.adminPassword ? "yes" : "no"}`);
   if (ENV.ownerEmail) {
     console.log(`[Startup] OWNER_EMAIL value=${ENV.ownerEmail}`);
+  }
+  if (process.env.DATABASE_URL) {
+    await ensureSchemaCompatibility();
   }
   if (ENV.ownerEmail && ENV.adminPassword) {
     const { bootstrapOwnerPassword: bootstrapOwnerPassword2 } = await Promise.resolve().then(() => (init_passwordAuth(), passwordAuth_exports));
