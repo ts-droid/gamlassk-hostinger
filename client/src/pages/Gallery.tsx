@@ -12,8 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Image as ImageIcon, Upload, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useSiteBranding } from "@/hooks/useCMSContent";
 
 export default function Gallery() {
+  const { siteLogo, siteName } = useSiteBranding();
   const { user, isAuthenticated } = useAuth();
   const [lightboxIndex, setLightboxIndex] = useState(-1);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -122,9 +124,12 @@ export default function Gallery() {
         <div className="container">
           <div className="flex items-center justify-between">
             <div>
-              <div className="flex items-center gap-3 mb-4">
-                <ImageIcon className="h-10 w-10" />
-                <h1 className="text-4xl font-bold">Bildgalleri</h1>
+              <div className="mb-4 flex items-center gap-4">
+                <img src={siteLogo} alt={siteName} className="h-16 w-16 rounded-md object-cover" />
+                <div>
+                  <h1 className="text-4xl font-bold">Bildgalleri</h1>
+                  <p className="text-sm text-blue-100">{siteName}</p>
+                </div>
               </div>
               <p className="text-xl text-blue-100">
                 Bilder från föreningens evenemang och aktiviteter

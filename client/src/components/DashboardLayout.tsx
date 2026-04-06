@@ -19,7 +19,8 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
+import { APP_TITLE, getLoginUrl } from "@/const";
+import { useSiteBranding } from "@/hooks/useCMSContent";
 import { useIsMobile } from "@/hooks/useMobile";
 import { LayoutDashboard, LogOut, PanelLeft, Users } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
@@ -42,6 +43,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const { siteLogo, siteName } = useSiteBranding();
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
@@ -64,14 +66,14 @@ export default function DashboardLayout({
             <div className="relative group">
               <div className="relative">
                 <img
-                  src={APP_LOGO}
-                  alt={APP_TITLE}
+                  src={siteLogo}
+                  alt={siteName}
                   className="h-20 w-20 rounded-xl object-cover shadow"
                 />
               </div>
             </div>
             <div className="text-center space-y-2">
-              <h1 className="text-2xl font-bold tracking-tight">{APP_TITLE}</h1>
+              <h1 className="text-2xl font-bold tracking-tight">{siteName || APP_TITLE}</h1>
               <p className="text-sm text-muted-foreground">
                 Please sign in to continue
               </p>
@@ -115,6 +117,7 @@ function DashboardLayoutContent({
   children,
   setSidebarWidth,
 }: DashboardLayoutContentProps) {
+  const { siteLogo, siteName } = useSiteBranding();
   const { user, logout } = useAuth();
   const [location, setLocation] = useLocation();
   const { state, toggleSidebar } = useSidebar();
@@ -173,9 +176,9 @@ function DashboardLayoutContent({
               {isCollapsed ? (
                 <div className="relative h-8 w-8 shrink-0 group">
                   <img
-                    src={APP_LOGO}
+                    src={siteLogo}
                     className="h-8 w-8 rounded-md object-cover ring-1 ring-border"
-                    alt="Logo"
+                    alt={siteName}
                   />
                   <button
                     onClick={toggleSidebar}
@@ -188,12 +191,12 @@ function DashboardLayoutContent({
                 <>
                   <div className="flex items-center gap-3 min-w-0">
                     <img
-                      src={APP_LOGO}
+                      src={siteLogo}
                       className="h-8 w-8 rounded-md object-cover ring-1 ring-border shrink-0"
-                      alt="Logo"
+                      alt={siteName}
                     />
                     <span className="font-semibold tracking-tight truncate">
-                      {APP_TITLE}
+                      {siteName || APP_TITLE}
                     </span>
                   </div>
                   <button

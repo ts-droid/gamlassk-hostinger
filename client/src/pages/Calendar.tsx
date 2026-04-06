@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Calendar as CalendarIcon, MapPin, Clock, Users, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/_core/hooks/useAuth';
+import { useSiteBranding } from '@/hooks/useCMSContent';
 
 const locales = {
   sv: sv,
@@ -24,6 +25,7 @@ const localizer = dateFnsLocalizer({
 });
 
 export default function Calendar() {
+  const { siteLogo, siteName } = useSiteBranding();
   const { user, isAuthenticated } = useAuth();
   const [view, setView] = useState<View>('month');
   const [date, setDate] = useState(new Date());
@@ -138,9 +140,12 @@ export default function Calendar() {
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-900 to-blue-700 text-white py-16">
         <div className="container">
-          <div className="flex items-center gap-3 mb-4">
-            <CalendarIcon className="h-10 w-10" />
-            <h1 className="text-4xl font-bold">Evenemangskalender</h1>
+          <div className="mb-4 flex items-center gap-4">
+            <img src={siteLogo} alt={siteName} className="h-16 w-16 rounded-md object-cover" />
+            <div>
+              <h1 className="text-4xl font-bold">Evenemangskalender</h1>
+              <p className="text-sm text-blue-100">{siteName}</p>
+            </div>
           </div>
           <p className="text-xl text-blue-100">
             Se alla kommande evenemang och anmäl dig direkt

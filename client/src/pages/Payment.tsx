@@ -10,8 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Smartphone, Upload, CheckCircle, Clock, XCircle, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { getLoginUrl } from "@/const";
+import { useSiteBranding } from "@/hooks/useCMSContent";
 
 export default function Payment() {
+  const { siteLogo, siteName } = useSiteBranding();
   const { user, isAuthenticated, loading } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -120,9 +122,12 @@ export default function Payment() {
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-900 to-blue-700 text-white py-16">
         <div className="container">
-          <div className="flex items-center gap-3 mb-4">
-            <Smartphone className="h-10 w-10" />
-            <h1 className="text-4xl font-bold">Betala medlemsavgift</h1>
+          <div className="mb-4 flex items-center gap-4">
+            <img src={siteLogo} alt={siteName} className="h-16 w-16 rounded-md object-cover" />
+            <div>
+              <h1 className="text-4xl font-bold">Betala medlemsavgift</h1>
+              <p className="text-sm text-blue-100">{siteName}</p>
+            </div>
           </div>
           <p className="text-xl text-blue-100">
             Betala enkelt med Swish och ladda upp kvitto för verifiering

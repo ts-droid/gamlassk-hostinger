@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Download, Eye, Lock } from "lucide-react";
 import { getLoginUrl } from "@/const";
+import { useSiteBranding } from "@/hooks/useCMSContent";
 
 const CATEGORY_LABELS = {
   stadgar: "Stadgar",
@@ -16,6 +17,7 @@ const CATEGORY_LABELS = {
 };
 
 export default function Documents() {
+  const { siteLogo, siteName } = useSiteBranding();
   const { user, isAuthenticated } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   
@@ -66,7 +68,13 @@ export default function Documents() {
       {/* Header */}
       <header className="bg-gradient-to-r from-blue-900 to-blue-700 text-white py-16">
         <div className="container mx-auto px-4">
-          <h1 className="text-4xl font-bold mb-4">Dokumentbibliotek</h1>
+          <div className="mb-4 flex items-center gap-4">
+            <img src={siteLogo} alt={siteName} className="h-16 w-16 rounded-md object-cover" />
+            <div>
+              <h1 className="text-4xl font-bold">Dokumentbibliotek</h1>
+              <p className="text-sm text-blue-100">{siteName}</p>
+            </div>
+          </div>
           <p className="text-xl text-blue-100">
             Hitta stadgar, protokoll och andra viktiga dokument
           </p>

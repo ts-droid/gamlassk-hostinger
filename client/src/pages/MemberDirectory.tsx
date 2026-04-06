@@ -8,8 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Search, Mail, Phone, User } from "lucide-react";
 import { Redirect } from "wouter";
+import { useSiteBranding } from "@/hooks/useCMSContent";
 
 export default function MemberDirectory() {
+  const { siteLogo, siteName } = useSiteBranding();
   const { user, loading: authLoading } = useAuth();
   const [search, setSearch] = useState("");
 
@@ -50,10 +52,15 @@ export default function MemberDirectory() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b">
         <div className="container mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold text-gray-900">Medlemskatalog</h1>
-          <p className="text-gray-600 mt-2">
-            Kontaktuppgifter till våra medlemmar
-          </p>
+          <div className="flex items-center gap-4">
+            <img src={siteLogo} alt={siteName} className="h-16 w-16 rounded-md object-cover" />
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Medlemskatalog</h1>
+              <p className="mt-2 text-gray-600">
+                Kontaktuppgifter till våra medlemmar
+              </p>
+            </div>
+          </div>
         </div>
       </header>
 

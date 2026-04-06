@@ -2,18 +2,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Link } from "wouter";
 import { Home, Calendar, Users, FileText, Loader2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { useSiteBranding } from "@/hooks/useCMSContent";
 
 export default function Statutes() {
   const { data: content, isLoading } = trpc.cms.getPageContent.useQuery({ page: 'statutes' });
-  const { data: settings } = trpc.cms.getSettings.useQuery();
+  const { siteLogo, siteName } = useSiteBranding();
 
   const getContent = (key: string) => {
     const section = content?.find(c => c.sectionKey === key && c.published === 1);
     return section?.content || '';
   };
-
-  const siteName = settings?.find(s => s.key === 'site_name')?.value || 'Föreningen Gamla SSK-are';
-  const logo = settings?.find(s => s.key === 'logo')?.value || '/logo.png';
 
   if (isLoading) {
     return (
@@ -30,10 +28,10 @@ export default function Statutes() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <img src={logo} alt="Gamla SSK Logo" className="h-16 w-16" />
+              <img src={siteLogo} alt="Gamla SSK Logo" className="h-16 w-16" />
               <div>
                 <h1 className="text-2xl font-bold">Stadgar & Information</h1>
-                <p className="text-sm opacity-90">Föreningen Gamla SSK-are</p>
+                <p className="text-sm opacity-90">{siteName}</p>
               </div>
             </div>
             <Link href="/" className="flex items-center gap-2 hover:text-[oklch(0.85_0.12_90)]">
