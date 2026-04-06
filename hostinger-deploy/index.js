@@ -3200,6 +3200,11 @@ async function startServer() {
   console.log(`[Startup] NODE_ENV=${process.env.NODE_ENV || "undefined"}`);
   console.log(`[Startup] PORT=${preferredPort}`);
   console.log(`[Startup] Database configured=${process.env.DATABASE_URL ? "yes" : "no"}`);
+  console.log(`[Startup] OWNER_EMAIL configured=${ENV.ownerEmail ? "yes" : "no"}`);
+  console.log(`[Startup] ADMIN_PASSWORD configured=${ENV.adminPassword ? "yes" : "no"}`);
+  if (ENV.ownerEmail) {
+    console.log(`[Startup] OWNER_EMAIL value=${ENV.ownerEmail}`);
+  }
   if (ENV.ownerEmail && ENV.adminPassword) {
     const { bootstrapOwnerPassword: bootstrapOwnerPassword2 } = await Promise.resolve().then(() => (init_passwordAuth(), passwordAuth_exports));
     const bootstrapped = await bootstrapOwnerPassword2(ENV.ownerEmail, ENV.adminPassword);
