@@ -1,14 +1,10 @@
 # Hostinger Runtime Bundle
-
-This folder is generated from the root project with `pnpm hostinger:prepare`.
-
+This folder is generated from the root project with `pnpm build`.
 Use this folder as the Hostinger root directory for deployments that should avoid building with Vite/esbuild on the server.
-
 Recommended Hostinger settings:
-
-- Root directory: `./hostinger-deploy`
+- Root directory: `./`
 - Package manager: `npm`
 - Entry file: `index.js`
 - Node.js version: `22.x`
-- Build command: leave empty if Hostinger allows it, otherwise `npm install`
+- Build command: `npm install --production`
 - Start command: `npm start`

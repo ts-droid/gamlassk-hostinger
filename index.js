@@ -32,12 +32,15 @@ var init_const = __esm({
 // drizzle/schema.ts
 var schema_exports = {};
 __export(schema_exports, {
+  banners: () => banners,
   boardMembers: () => boardMembers,
   contentHistory: () => contentHistory,
+  documentVersions: () => documentVersions,
   documents: () => documents,
   eventRegistrations: () => eventRegistrations,
   events: () => events,
   galleryPhotos: () => galleryPhotos,
+  implementationTasks: () => implementationTasks,
   membershipApplications: () => membershipApplications,
   news: () => news,
   pageContent: () => pageContent,
@@ -48,7 +51,7 @@ __export(schema_exports, {
   users: () => users
 });
 import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, json } from "drizzle-orm/mysql-core";
-var users, roles, news, membershipApplications, galleryPhotos, events, eventRegistrations, paymentConfirmations, pageContent, siteSettings, boardMembers, contentHistory, documents, passwordResetTokens;
+var users, roles, news, membershipApplications, galleryPhotos, events, eventRegistrations, paymentConfirmations, pageContent, siteSettings, boardMembers, contentHistory, documents, documentVersions, passwordResetTokens, banners, implementationTasks;
 var init_schema = __esm({
   "drizzle/schema.ts"() {
     "use strict";
@@ -238,6 +241,19 @@ var init_schema = __esm({
       createdAt: timestamp("createdAt").defaultNow().notNull(),
       updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
     });
+    documentVersions = mysqlTable("document_versions", {
+      id: int("id").autoincrement().primaryKey(),
+      documentId: int("documentId").notNull().references(() => documents.id, { onDelete: "cascade" }),
+      versionNumber: int("versionNumber").notNull(),
+      title: varchar("title", { length: 255 }).notNull(),
+      description: text("description"),
+      fileUrl: text("fileUrl").notNull(),
+      fileSize: int("fileSize"),
+      category: varchar("category", { length: 100 }).notNull(),
+      accessLevel: varchar("accessLevel", { length: 50 }).notNull(),
+      updatedBy: int("updatedBy").references(() => users.id),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
     passwordResetTokens = mysqlTable("password_reset_tokens", {
       id: int("id").autoincrement().primaryKey(),
       userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -246,6 +262,43 @@ var init_schema = __esm({
       used: int("used").notNull().default(0),
       // 0 = not used, 1 = used
       createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    banners = mysqlTable("banners", {
+      id: int("id").autoincrement().primaryKey(),
+      title: varchar("title", { length: 255 }).notNull(),
+      content: text("content").notNull(),
+      type: mysqlEnum("type", ["info", "warning", "success", "event", "announcement"]).default("info").notNull(),
+      style: varchar("style", { length: 50 }).default("default").notNull(),
+      // color scheme
+      position: mysqlEnum("position", ["top", "hero", "sidebar"]).default("top").notNull(),
+      active: int("active").default(1).notNull(),
+      // 1 = active, 0 = inactive
+      startDate: timestamp("startDate"),
+      endDate: timestamp("endDate"),
+      order: int("order").default(0).notNull(),
+      // Display order (lower = higher priority)
+      linkUrl: text("linkUrl"),
+      // Optional link
+      linkText: varchar("linkText", { length: 100 }),
+      // Link button text
+      createdBy: int("createdBy").references(() => users.id),
+      createdAt: timestamp("createdAt").defaultNow().notNull(),
+      updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+    });
+    implementationTasks = mysqlTable("implementation_tasks", {
+      id: int("id").autoincrement().primaryKey(),
+      phase: varchar("phase", { length: 100 }).notNull(),
+      // "Fas 1", "Fas 2", etc.
+      title: varchar("title", { length: 255 }).notNull(),
+      description: text("description"),
+      estimatedHours: int("estimatedHours"),
+      priority: mysqlEnum("priority", ["high", "medium", "low"]).default("medium").notNull(),
+      status: mysqlEnum("status", ["pending", "in_progress", "completed"]).default("pending").notNull(),
+      order: int("order").notNull().default(0),
+      completedAt: timestamp("completedAt"),
+      completedBy: int("completedBy").references(() => users.id),
+      createdAt: timestamp("createdAt").defaultNow().notNull(),
+      updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
     });
   }
 });
@@ -263,7 +316,8 @@ var init_env = __esm({
       ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
       isProduction: process.env.NODE_ENV === "production",
       forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
-      forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? ""
+      forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
+      resendApiKey: process.env.RESEND_API_KEY ?? ""
     };
   }
 });
@@ -275,19 +329,23 @@ __export(db_exports, {
   deleteDocument: () => deleteDocument,
   generateMemberNumber: () => generateMemberNumber,
   getAllDocuments: () => getAllDocuments,
+  getAllImplementationTasks: () => getAllImplementationTasks,
   getDb: () => getDb,
   getDocumentById: () => getDocumentById,
   getDocumentsByCategory: () => getDocumentsByCategory,
   getEventWithRegistrations: () => getEventWithRegistrations,
+  getImplementationTasksByPhase: () => getImplementationTasksByPhase,
   getMemberById: () => getMemberById,
   getMembers: () => getMembers,
   getMembersForDirectory: () => getMembersForDirectory,
   getUpcomingEvents: () => getUpcomingEvents,
+  getUserByEmail: () => getUserByEmail,
   getUserByOpenId: () => getUserByOpenId,
   getUserEventRegistration: () => getUserEventRegistration,
   getUserRegisteredEvents: () => getUserRegisteredEvents,
   getUserRole: () => getUserRole,
   linkUserToMember: () => linkUserToMember,
+  updateImplementationTaskStatus: () => updateImplementationTaskStatus,
   updateMember: () => updateMember,
   upsertUser: () => upsertUser,
   userHasPermission: () => userHasPermission,
@@ -320,6 +378,10 @@ async function upsertUser(user) {
       openId: user.openId
     };
     const updateSet = {};
+    if (user.password !== void 0) {
+      values.password = user.password ?? null;
+      updateSet.password = user.password ?? null;
+    }
     const textFields = ["name", "email", "loginMethod"];
     const assignNullable = (field) => {
       const value = user[field];
@@ -353,6 +415,15 @@ async function upsertUser(user) {
     console.error("[Database] Failed to upsert user:", error);
     throw error;
   }
+}
+async function getUserByEmail(email) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get user: database not available");
+    return void 0;
+  }
+  const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  return result.length > 0 ? result[0] : void 0;
 }
 async function getUserByOpenId(openId) {
   const db = await getDb();
@@ -535,8 +606,8 @@ async function getEventWithRegistrations(eventId) {
   const db = await getDb();
   if (!db) return null;
   const { events: events2, eventRegistrations: eventRegistrations2, users: users2 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
-  const { eq: eq6 } = await import("drizzle-orm");
-  const event = await db.select().from(events2).where(eq6(events2.id, eventId)).limit(1);
+  const { eq: eq7 } = await import("drizzle-orm");
+  const event = await db.select().from(events2).where(eq7(events2.id, eventId)).limit(1);
   if (event.length === 0) return null;
   const registrations = await db.select({
     id: eventRegistrations2.id,
@@ -549,7 +620,7 @@ async function getEventWithRegistrations(eventId) {
       email: users2.email,
       phone: users2.phone
     }
-  }).from(eventRegistrations2).leftJoin(users2, eq6(eventRegistrations2.userId, users2.id)).where(eq6(eventRegistrations2.eventId, eventId)).orderBy(eventRegistrations2.registeredAt);
+  }).from(eventRegistrations2).leftJoin(users2, eq7(eventRegistrations2.userId, users2.id)).where(eq7(eventRegistrations2.eventId, eventId)).orderBy(eventRegistrations2.registeredAt);
   return {
     ...event[0],
     registrations,
@@ -561,19 +632,19 @@ async function getUserEventRegistration(eventId, userId) {
   const db = await getDb();
   if (!db) return null;
   const { eventRegistrations: eventRegistrations2 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
-  const { eq: eq6, and: and4 } = await import("drizzle-orm");
-  const result = await db.select().from(eventRegistrations2).where(and4(eq6(eventRegistrations2.eventId, eventId), eq6(eventRegistrations2.userId, userId))).limit(1);
+  const { eq: eq7, and: and4 } = await import("drizzle-orm");
+  const result = await db.select().from(eventRegistrations2).where(and4(eq7(eventRegistrations2.eventId, eventId), eq7(eventRegistrations2.userId, userId))).limit(1);
   return result.length > 0 ? result[0] : null;
 }
 async function getUserRegisteredEvents(userId) {
   const db = await getDb();
   if (!db) return [];
   const { events: events2, eventRegistrations: eventRegistrations2 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
-  const { eq: eq6, and: and4, ne } = await import("drizzle-orm");
+  const { eq: eq7, and: and4, ne } = await import("drizzle-orm");
   return await db.select({
     event: events2,
     registration: eventRegistrations2
-  }).from(eventRegistrations2).leftJoin(events2, eq6(eventRegistrations2.eventId, events2.id)).where(and4(eq6(eventRegistrations2.userId, userId), ne(eventRegistrations2.status, "cancelled"))).orderBy(events2.eventDate);
+  }).from(eventRegistrations2).leftJoin(events2, eq7(eventRegistrations2.eventId, events2.id)).where(and4(eq7(eventRegistrations2.userId, userId), ne(eventRegistrations2.status, "cancelled"))).orderBy(events2.eventDate);
 }
 async function getAllDocuments() {
   const db = await getDb();
@@ -600,6 +671,35 @@ async function deleteDocument(id) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(documents).where(eq(documents.id, id));
+}
+async function getAllImplementationTasks() {
+  const db = await getDb();
+  if (!db) return [];
+  const { implementationTasks: implementationTasks2 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
+  return await db.select().from(implementationTasks2).orderBy(implementationTasks2.phase, implementationTasks2.order);
+}
+async function getImplementationTasksByPhase(phase) {
+  const db = await getDb();
+  if (!db) return [];
+  const { implementationTasks: implementationTasks2 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
+  const { eq: eq7 } = await import("drizzle-orm");
+  return await db.select().from(implementationTasks2).where(eq7(implementationTasks2.phase, phase)).orderBy(implementationTasks2.order);
+}
+async function updateImplementationTaskStatus(taskId, status, userId) {
+  const db = await getDb();
+  if (!db) return null;
+  const { implementationTasks: implementationTasks2 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
+  const { eq: eq7 } = await import("drizzle-orm");
+  const updateData = { status };
+  if (status === "completed") {
+    updateData.completedAt = /* @__PURE__ */ new Date();
+    if (userId) updateData.completedBy = userId;
+  } else {
+    updateData.completedAt = null;
+    updateData.completedBy = null;
+  }
+  await db.update(implementationTasks2).set(updateData).where(eq7(implementationTasks2.id, taskId));
+  return await db.select().from(implementationTasks2).where(eq7(implementationTasks2.id, taskId)).limit(1).then((rows) => rows[0]);
 }
 var _db;
 var init_db = __esm({
@@ -917,6 +1017,99 @@ var init_googleAuth = __esm({
   }
 });
 
+// server/_core/notification.ts
+var notification_exports = {};
+__export(notification_exports, {
+  notifyOwner: () => notifyOwner
+});
+import { TRPCError } from "@trpc/server";
+async function notifyOwner(payload) {
+  const { title, content } = validatePayload(payload);
+  if (!ENV.forgeApiUrl) {
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Notification service URL is not configured."
+    });
+  }
+  if (!ENV.forgeApiKey) {
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Notification service API key is not configured."
+    });
+  }
+  const endpoint = buildEndpointUrl(ENV.forgeApiUrl);
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        authorization: `Bearer ${ENV.forgeApiKey}`,
+        "content-type": "application/json",
+        "connect-protocol-version": "1"
+      },
+      body: JSON.stringify({ title, content })
+    });
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+      console.warn(
+        `[Notification] Failed to notify owner (${response.status} ${response.statusText})${detail ? `: ${detail}` : ""}`
+      );
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn("[Notification] Error calling notification service:", error);
+    return false;
+  }
+}
+var TITLE_MAX_LENGTH, CONTENT_MAX_LENGTH, trimValue, isNonEmptyString2, buildEndpointUrl, validatePayload;
+var init_notification = __esm({
+  "server/_core/notification.ts"() {
+    "use strict";
+    init_env();
+    TITLE_MAX_LENGTH = 1200;
+    CONTENT_MAX_LENGTH = 2e4;
+    trimValue = (value) => value.trim();
+    isNonEmptyString2 = (value) => typeof value === "string" && value.trim().length > 0;
+    buildEndpointUrl = (baseUrl) => {
+      const normalizedBase = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
+      return new URL(
+        "webdevtoken.v1.WebDevService/SendNotification",
+        normalizedBase
+      ).toString();
+    };
+    validatePayload = (input) => {
+      if (!isNonEmptyString2(input.title)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Notification title is required."
+        });
+      }
+      if (!isNonEmptyString2(input.content)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Notification content is required."
+        });
+      }
+      const title = trimValue(input.title);
+      const content = trimValue(input.content);
+      if (title.length > TITLE_MAX_LENGTH) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Notification title must be at most ${TITLE_MAX_LENGTH} characters.`
+        });
+      }
+      if (content.length > CONTENT_MAX_LENGTH) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Notification content must be at most ${CONTENT_MAX_LENGTH} characters.`
+        });
+      }
+      return { title, content };
+    };
+  }
+});
+
 // server/storage.ts
 function getStorageConfig() {
   const baseUrl = ENV.forgeApiUrl;
@@ -985,14 +1178,14 @@ __export(passwordAuth_exports, {
   verifyPassword: () => verifyPassword,
   verifyPasswordResetToken: () => verifyPasswordResetToken
 });
-import bcrypt from "bcryptjs";
+import bcrypt2 from "bcryptjs";
 import crypto from "crypto";
-import { eq as eq2, and as and2, gt } from "drizzle-orm";
+import { eq as eq3, and as and2, gt } from "drizzle-orm";
 async function hashPassword(password) {
-  return bcrypt.hash(password, SALT_ROUNDS);
+  return bcrypt2.hash(password, SALT_ROUNDS);
 }
 async function verifyPassword(password, hash) {
-  return bcrypt.compare(password, hash);
+  return bcrypt2.compare(password, hash);
 }
 async function authenticateWithPassword(email, password) {
   const db = await getDb();
@@ -1001,7 +1194,7 @@ async function authenticateWithPassword(email, password) {
     return null;
   }
   try {
-    const result = await db.select().from(users).where(eq2(users.email, email)).limit(1);
+    const result = await db.select().from(users).where(eq3(users.email, email)).limit(1);
     if (result.length === 0) {
       console.log("[PasswordAuth] User not found:", email);
       return null;
@@ -1030,7 +1223,7 @@ async function generatePasswordResetToken(email) {
     return null;
   }
   try {
-    const result = await db.select().from(users).where(eq2(users.email, email)).limit(1);
+    const result = await db.select().from(users).where(eq3(users.email, email)).limit(1);
     if (result.length === 0) {
       console.log("[PasswordAuth] User not found for reset:", email);
       return null;
@@ -1062,8 +1255,8 @@ async function verifyPasswordResetToken(token) {
     const now = /* @__PURE__ */ new Date();
     const result = await db.select().from(passwordResetTokens).where(
       and2(
-        eq2(passwordResetTokens.token, token),
-        eq2(passwordResetTokens.used, 0),
+        eq3(passwordResetTokens.token, token),
+        eq3(passwordResetTokens.used, 0),
         gt(passwordResetTokens.expiresAt, now)
       )
     ).limit(1);
@@ -1072,7 +1265,7 @@ async function verifyPasswordResetToken(token) {
       return null;
     }
     const resetToken = result[0];
-    await db.update(passwordResetTokens).set({ used: 1 }).where(eq2(passwordResetTokens.id, resetToken.id));
+    await db.update(passwordResetTokens).set({ used: 1 }).where(eq3(passwordResetTokens.id, resetToken.id));
     console.log("[PasswordAuth] Reset token verified for user:", resetToken.userId);
     return resetToken.userId;
   } catch (error) {
@@ -1092,7 +1285,7 @@ async function resetPassword(userId, newPassword) {
       password: hashedPassword,
       loginMethod: "password",
       updatedAt: /* @__PURE__ */ new Date()
-    }).where(eq2(users.id, userId));
+    }).where(eq3(users.id, userId));
     console.log("[PasswordAuth] Password reset successful for user:", userId);
     return true;
   } catch (error) {
@@ -1460,6 +1653,128 @@ var init_imageProcessor = __esm({
   }
 });
 
+// server/_core/email.ts
+var email_exports = {};
+__export(email_exports, {
+  sendEventInvitation: () => sendEventInvitation
+});
+async function sendEventInvitation(params) {
+  if (!ENV.resendApiKey) {
+    console.warn("[Email] Resend API key not configured, skipping email send");
+    return false;
+  }
+  const { to, recipientName, eventTitle, eventDate, eventLocation, eventDescription, rsvpUrl } = params;
+  const formattedDate = new Intl.DateTimeFormat("sv-SE", {
+    dateStyle: "full",
+    timeStyle: "short"
+  }).format(eventDate);
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inbjudan till ${eventTitle}</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #003366 0%, #0066cc 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
+    <h1 style="margin: 0; font-size: 24px;">Inbjudan till evenemang</h1>
+  </div>
+  
+  <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px;">
+    <p style="font-size: 16px; margin-bottom: 20px;">Hej ${recipientName},</p>
+    
+    <p style="font-size: 16px; margin-bottom: 20px;">Du \xE4r inbjuden till f\xF6ljande evenemang:</p>
+    
+    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #0066cc;">
+      <h2 style="margin: 0 0 15px 0; color: #003366; font-size: 20px;">${eventTitle}</h2>
+      
+      <p style="margin: 10px 0; font-size: 15px;">
+        <strong>\u{1F4C5} Datum:</strong> ${formattedDate}
+      </p>
+      
+      ${eventLocation ? `
+      <p style="margin: 10px 0; font-size: 15px;">
+        <strong>\u{1F4CD} Plats:</strong> ${eventLocation}
+      </p>
+      ` : ""}
+      
+      ${eventDescription ? `
+      <p style="margin: 15px 0 0 0; font-size: 15px; color: #666;">
+        ${eventDescription}
+      </p>
+      ` : ""}
+    </div>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${rsvpUrl}" style="display: inline-block; background: #0066cc; color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;">
+        Anm\xE4l dig h\xE4r
+      </a>
+    </div>
+    
+    <p style="font-size: 14px; color: #666; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+      Med v\xE4nliga h\xE4lsningar,<br>
+      <strong>F\xF6reningen Gamla SSK-are</strong>
+    </p>
+  </div>
+  
+  <div style="text-align: center; padding: 20px; font-size: 12px; color: #999;">
+    <p>Detta \xE4r ett automatiskt meddelande fr\xE5n F\xF6reningen Gamla SSK-are.</p>
+  </div>
+</body>
+</html>
+  `;
+  const textContent = `
+Hej ${recipientName},
+
+Du \xE4r inbjuden till f\xF6ljande evenemang:
+
+${eventTitle}
+Datum: ${formattedDate}
+${eventLocation ? `Plats: ${eventLocation}` : ""}
+
+${eventDescription || ""}
+
+Anm\xE4l dig h\xE4r: ${rsvpUrl}
+
+Med v\xE4nliga h\xE4lsningar,
+F\xF6reningen Gamla SSK-are
+  `.trim();
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${ENV.resendApiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        from: "F\xF6reningen Gamla SSK-are <noreply@notifications.manus.im>",
+        to: [to],
+        subject: `Inbjudan: ${eventTitle}`,
+        html: htmlContent,
+        text: textContent
+      })
+    });
+    if (!response.ok) {
+      const error = await response.text();
+      console.error("[Email] Failed to send invitation:", error);
+      return false;
+    }
+    const result = await response.json();
+    console.log("[Email] Invitation sent successfully:", result);
+    return true;
+  } catch (error) {
+    console.error("[Email] Error sending invitation:", error);
+    return false;
+  }
+}
+var init_email = __esm({
+  "server/_core/email.ts"() {
+    "use strict";
+    init_env();
+  }
+});
+
 // server/memberImportExport.ts
 var memberImportExport_exports = {};
 __export(memberImportExport_exports, {
@@ -1468,7 +1783,7 @@ __export(memberImportExport_exports, {
 });
 import Papa from "papaparse";
 import ExcelJS from "exceljs";
-import { eq as eq3 } from "drizzle-orm";
+import { eq as eq4 } from "drizzle-orm";
 function validatePersonnummer(personnummer) {
   if (!personnummer) return false;
   const cleaned = personnummer.replace(/[-\s]/g, "");
@@ -1539,7 +1854,7 @@ async function importMembersFromCSV(csvData) {
           continue;
         }
         if (row.personnummer) {
-          const existing = await db.select().from(users).where(eq3(users.personnummer, row.personnummer)).limit(1);
+          const existing = await db.select().from(users).where(eq4(users.personnummer, row.personnummer)).limit(1);
           if (existing.length > 0) {
             result.errors.push({
               row: rowNumber,
@@ -1550,7 +1865,7 @@ async function importMembersFromCSV(csvData) {
             continue;
           }
         } else if (row.email) {
-          const existing = await db.select().from(users).where(eq3(users.email, row.email)).limit(1);
+          const existing = await db.select().from(users).where(eq4(users.email, row.email)).limit(1);
           if (existing.length > 0) {
             result.errors.push({
               row: rowNumber,
@@ -1618,7 +1933,7 @@ async function exportMembersToExcel() {
   if (!db) {
     throw new Error("Database not available");
   }
-  const members = await db.select().from(users).where(eq3(users.membershipStatus, "active"));
+  const members = await db.select().from(users).where(eq4(users.membershipStatus, "active"));
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet("Medlemmar");
   worksheet.columns = [
@@ -1682,11 +1997,11 @@ __export(eventDb_exports, {
   registerForEvent: () => registerForEvent,
   updateEvent: () => updateEvent
 });
-import { eq as eq5, and as and3, gte as gte2, desc as desc4, sql as sql4 } from "drizzle-orm";
+import { eq as eq6, and as and3, gte as gte2, desc as desc4, sql as sql4 } from "drizzle-orm";
 async function getAllEvents() {
   const db = await getDb();
   if (!db) return [];
-  const result = await db.select().from(events).where(eq5(events.status, "published")).orderBy(events.eventDate);
+  const result = await db.select().from(events).where(eq6(events.status, "published")).orderBy(events.eventDate);
   return result;
 }
 async function getUpcomingEvents2(limit) {
@@ -1695,7 +2010,7 @@ async function getUpcomingEvents2(limit) {
   const now = /* @__PURE__ */ new Date();
   let query = db.select().from(events).where(
     and3(
-      eq5(events.status, "published"),
+      eq6(events.status, "published"),
       gte2(events.eventDate, now)
     )
   ).orderBy(events.eventDate);
@@ -1708,7 +2023,7 @@ async function getUpcomingEvents2(limit) {
 async function getEventById(eventId) {
   const db = await getDb();
   if (!db) return void 0;
-  const result = await db.select().from(events).where(eq5(events.id, eventId)).limit(1);
+  const result = await db.select().from(events).where(eq6(events.id, eventId)).limit(1);
   return result[0];
 }
 async function createEvent(event) {
@@ -1723,7 +2038,7 @@ async function createEvent(event) {
 async function updateEvent(eventId, updates) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.update(events).set(updates).where(eq5(events.id, eventId));
+  await db.update(events).set(updates).where(eq6(events.id, eventId));
   const updated = await getEventById(eventId);
   if (!updated) throw new Error("Failed to retrieve updated event");
   return updated;
@@ -1731,12 +2046,12 @@ async function updateEvent(eventId, updates) {
 async function deleteEvent(eventId) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.delete(events).where(eq5(events.id, eventId));
+  await db.delete(events).where(eq6(events.id, eventId));
 }
 async function getEventRegistrations(eventId) {
   const db = await getDb();
   if (!db) return [];
-  const result = await db.select().from(eventRegistrations).where(eq5(eventRegistrations.eventId, eventId)).orderBy(desc4(eventRegistrations.registeredAt));
+  const result = await db.select().from(eventRegistrations).where(eq6(eventRegistrations.eventId, eventId)).orderBy(desc4(eventRegistrations.registeredAt));
   return result;
 }
 async function getEventRegistrationCount(eventId) {
@@ -1744,8 +2059,8 @@ async function getEventRegistrationCount(eventId) {
   if (!db) return 0;
   const result = await db.select({ count: sql4`count(*)` }).from(eventRegistrations).where(
     and3(
-      eq5(eventRegistrations.eventId, eventId),
-      eq5(eventRegistrations.status, "registered")
+      eq6(eventRegistrations.eventId, eventId),
+      eq6(eventRegistrations.status, "registered")
     )
   );
   return result[0]?.count || 0;
@@ -1755,9 +2070,9 @@ async function isUserRegistered(eventId, userId) {
   if (!db) return false;
   const result = await db.select().from(eventRegistrations).where(
     and3(
-      eq5(eventRegistrations.eventId, eventId),
-      eq5(eventRegistrations.userId, userId),
-      eq5(eventRegistrations.status, "registered")
+      eq6(eventRegistrations.eventId, eventId),
+      eq6(eventRegistrations.userId, userId),
+      eq6(eventRegistrations.status, "registered")
     )
   ).limit(1);
   return result.length > 0;
@@ -1781,7 +2096,7 @@ async function registerForEvent(eventId, userId, notes) {
           notes
         });
         const insertedId2 = result2[0].insertId;
-        const registration2 = await db.select().from(eventRegistrations).where(eq5(eventRegistrations.id, Number(insertedId2))).limit(1);
+        const registration2 = await db.select().from(eventRegistrations).where(eq6(eventRegistrations.id, Number(insertedId2))).limit(1);
         return registration2[0];
       } else {
         throw new Error("Event is full and waitlist is not allowed");
@@ -1795,7 +2110,7 @@ async function registerForEvent(eventId, userId, notes) {
     notes
   });
   const insertedId = result[0].insertId;
-  const registration = await db.select().from(eventRegistrations).where(eq5(eventRegistrations.id, Number(insertedId))).limit(1);
+  const registration = await db.select().from(eventRegistrations).where(eq6(eventRegistrations.id, Number(insertedId))).limit(1);
   return registration[0];
 }
 async function cancelEventRegistration(eventId, userId) {
@@ -1806,8 +2121,8 @@ async function cancelEventRegistration(eventId, userId) {
     cancelledAt: /* @__PURE__ */ new Date()
   }).where(
     and3(
-      eq5(eventRegistrations.eventId, eventId),
-      eq5(eventRegistrations.userId, userId)
+      eq6(eventRegistrations.eventId, eventId),
+      eq6(eventRegistrations.userId, userId)
     )
   );
 }
@@ -1829,10 +2144,10 @@ async function getUserEvents(userId) {
     createdBy: events.createdBy,
     createdAt: events.createdAt,
     updatedAt: events.updatedAt
-  }).from(events).innerJoin(eventRegistrations, eq5(events.id, eventRegistrations.eventId)).where(
+  }).from(events).innerJoin(eventRegistrations, eq6(events.id, eventRegistrations.eventId)).where(
     and3(
-      eq5(eventRegistrations.userId, userId),
-      eq5(eventRegistrations.status, "registered")
+      eq6(eventRegistrations.userId, userId),
+      eq6(eventRegistrations.status, "registered")
     )
   ).orderBy(events.eventDate);
   return result;
@@ -1956,7 +2271,7 @@ var init_icalGenerator = __esm({
 import "dotenv/config";
 import express2 from "express";
 import cookieParser from "cookie-parser";
-import passport3 from "passport";
+import passport2 from "passport";
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
@@ -2024,142 +2339,160 @@ function registerOAuthRoutes(app) {
   });
 }
 
+// server/_core/passwordAuth.ts
+init_const();
+init_db();
+import bcrypt from "bcryptjs";
+import { SignJWT as SignJWT2, jwtVerify as jwtVerify2 } from "jose";
+init_env();
+var SUPERADMIN_EMAIL = "thomas.soderberg@gmail.com";
+function getSessionSecret() {
+  return new TextEncoder().encode(ENV.cookieSecret);
+}
+async function createSessionToken(openId, name) {
+  const expirationSeconds = Math.floor((Date.now() + ONE_YEAR_MS) / 1e3);
+  return new SignJWT2({ openId, appId: ENV.appId || "gamla-ssk", name }).setProtectedHeader({ alg: "HS256", typ: "JWT" }).setExpirationTime(expirationSeconds).sign(getSessionSecret());
+}
+async function verifySessionToken(token) {
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify2(token, getSessionSecret(), {
+      algorithms: ["HS256"]
+    });
+    const { openId, appId, name } = payload;
+    if (typeof openId !== "string" || typeof appId !== "string" || typeof name !== "string")
+      return null;
+    return { openId, appId, name };
+  } catch {
+    return null;
+  }
+}
+function registerPasswordAuthRoutes(app) {
+  app.post("/api/auth/login", async (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      res.status(400).json({ error: "E-post och l\xF6senord kr\xE4vs" });
+      return;
+    }
+    try {
+      const user = await getUserByEmail(email.toLowerCase().trim());
+      if (!user || !user.password) {
+        res.status(401).json({ error: "Felaktig e-post eller l\xF6senord" });
+        return;
+      }
+      const valid = await bcrypt.compare(password, user.password);
+      if (!valid) {
+        res.status(401).json({ error: "Felaktig e-post eller l\xF6senord" });
+        return;
+      }
+      const token = await createSessionToken(
+        user.openId,
+        user.name || user.email || ""
+      );
+      const cookieOptions = getSessionCookieOptions(req);
+      res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+      await upsertUser({ openId: user.openId, lastSignedIn: /* @__PURE__ */ new Date() });
+      res.json({ success: true, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+    } catch (error) {
+      console.error("[Auth] Login failed", error);
+      res.status(500).json({ error: "Inloggning misslyckades" });
+    }
+  });
+  app.post("/api/auth/register", async (req, res) => {
+    const { email, password, name } = req.body;
+    if (!email || !password || !name) {
+      res.status(400).json({ error: "Namn, e-post och l\xF6senord kr\xE4vs" });
+      return;
+    }
+    if (password.length < 8) {
+      res.status(400).json({ error: "L\xF6senordet m\xE5ste vara minst 8 tecken" });
+      return;
+    }
+    const normalizedEmail = email.toLowerCase().trim();
+    try {
+      const existing = await getUserByEmail(normalizedEmail);
+      if (existing) {
+        res.status(409).json({ error: "E-postadressen \xE4r redan registrerad" });
+        return;
+      }
+      const hashedPassword = await bcrypt.hash(password, 12);
+      const openId = `email_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      const role = normalizedEmail === SUPERADMIN_EMAIL ? "admin" : "user";
+      await upsertUser({
+        openId,
+        email: normalizedEmail,
+        name,
+        password: hashedPassword,
+        loginMethod: "email",
+        role,
+        lastSignedIn: /* @__PURE__ */ new Date()
+      });
+      const user = await getUserByEmail(normalizedEmail);
+      if (!user) throw new Error("User creation failed");
+      const token = await createSessionToken(openId, name);
+      const cookieOptions = getSessionCookieOptions(req);
+      res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+      res.json({ success: true, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+    } catch (error) {
+      console.error("[Auth] Register failed", error);
+      res.status(500).json({ error: "Registrering misslyckades" });
+    }
+  });
+  app.post("/api/auth/change-password", async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+    const { parse: parseCookies } = await import("cookie");
+    const cookies = parseCookies(req.headers.cookie || "");
+    const session = await verifySessionToken(cookies[COOKIE_NAME]);
+    if (!session) {
+      res.status(401).json({ error: "Inte inloggad" });
+      return;
+    }
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({ error: "Nuvarande och nytt l\xF6senord kr\xE4vs" });
+      return;
+    }
+    if (newPassword.length < 8) {
+      res.status(400).json({ error: "Nytt l\xF6senord m\xE5ste vara minst 8 tecken" });
+      return;
+    }
+    try {
+      const user = await getUserByOpenId(session.openId);
+      if (!user || !user.password) {
+        res.status(404).json({ error: "Anv\xE4ndare hittades inte" });
+        return;
+      }
+      const valid = await bcrypt.compare(currentPassword, user.password);
+      if (!valid) {
+        res.status(401).json({ error: "Felaktigt nuvarande l\xF6senord" });
+        return;
+      }
+      const hashedPassword = await bcrypt.hash(newPassword, 12);
+      await upsertUser({ openId: user.openId, password: hashedPassword });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[Auth] Change password failed", error);
+      res.status(500).json({ error: "L\xF6senordsbyte misslyckades" });
+    }
+  });
+}
+async function authenticateRequest(req) {
+  const { parse: parseCookies } = await import("cookie");
+  const cookies = parseCookies(req.headers.cookie || "");
+  const session = await verifySessionToken(cookies[COOKIE_NAME]);
+  if (!session) return null;
+  const user = await getUserByOpenId(session.openId);
+  return user ?? null;
+}
+
 // server/_core/index.ts
 init_googleAuth();
-
-// server/googleAuthRoutes.ts
-init_db();
-init_const();
-import { Router } from "express";
-import passport2 from "passport";
-init_sdk();
-function createGoogleAuthRoutes() {
-  const router2 = Router();
-  router2.get(
-    "/auth/google",
-    passport2.authenticate("google", {
-      scope: ["profile", "email"],
-      session: false
-    })
-  );
-  router2.get(
-    "/auth/google/callback",
-    passport2.authenticate("google", { session: false, failureRedirect: "/?error=google_auth_failed" }),
-    async (req, res) => {
-      try {
-        const user = req.user;
-        if (!user || !user.email) {
-          return res.redirect("/?error=no_email");
-        }
-        const openId = `google:${user.providerId}`;
-        await upsertUser({
-          openId,
-          name: user.name,
-          email: user.email,
-          loginMethod: "google",
-          lastSignedIn: /* @__PURE__ */ new Date()
-        });
-        const token = await sdk.createSessionToken(openId, { name: user.name || "" });
-        const cookieOptions = getSessionCookieOptions(req);
-        res.cookie(COOKIE_NAME, token, cookieOptions);
-        res.redirect("/");
-      } catch (error) {
-        console.error("[Google Auth] Callback error:", error);
-        res.redirect("/?error=auth_failed");
-      }
-    }
-  );
-  return router2;
-}
 
 // server/routers.ts
 init_const();
 
 // server/_core/systemRouter.ts
+init_notification();
 import { z } from "zod";
-
-// server/_core/notification.ts
-init_env();
-import { TRPCError } from "@trpc/server";
-var TITLE_MAX_LENGTH = 1200;
-var CONTENT_MAX_LENGTH = 2e4;
-var trimValue = (value) => value.trim();
-var isNonEmptyString2 = (value) => typeof value === "string" && value.trim().length > 0;
-var buildEndpointUrl = (baseUrl) => {
-  const normalizedBase = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
-  return new URL(
-    "webdevtoken.v1.WebDevService/SendNotification",
-    normalizedBase
-  ).toString();
-};
-var validatePayload = (input) => {
-  if (!isNonEmptyString2(input.title)) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "Notification title is required."
-    });
-  }
-  if (!isNonEmptyString2(input.content)) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "Notification content is required."
-    });
-  }
-  const title = trimValue(input.title);
-  const content = trimValue(input.content);
-  if (title.length > TITLE_MAX_LENGTH) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: `Notification title must be at most ${TITLE_MAX_LENGTH} characters.`
-    });
-  }
-  if (content.length > CONTENT_MAX_LENGTH) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: `Notification content must be at most ${CONTENT_MAX_LENGTH} characters.`
-    });
-  }
-  return { title, content };
-};
-async function notifyOwner(payload) {
-  const { title, content } = validatePayload(payload);
-  if (!ENV.forgeApiUrl) {
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Notification service URL is not configured."
-    });
-  }
-  if (!ENV.forgeApiKey) {
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Notification service API key is not configured."
-    });
-  }
-  const endpoint = buildEndpointUrl(ENV.forgeApiUrl);
-  try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        accept: "application/json",
-        authorization: `Bearer ${ENV.forgeApiKey}`,
-        "content-type": "application/json",
-        "connect-protocol-version": "1"
-      },
-      body: JSON.stringify({ title, content })
-    });
-    if (!response.ok) {
-      const detail = await response.text().catch(() => "");
-      console.warn(
-        `[Notification] Failed to notify owner (${response.status} ${response.statusText})${detail ? `: ${detail}` : ""}`
-      );
-      return false;
-    }
-    return true;
-  } catch (error) {
-    console.warn("[Notification] Error calling notification service:", error);
-    return false;
-  }
-}
 
 // server/_core/trpc.ts
 init_const();
@@ -2249,15 +2582,91 @@ var systemRouter = router({
 
 // server/routers.ts
 init_db();
+import { TRPCError as TRPCError3 } from "@trpc/server";
+
+// server/routers/implementationTasks.ts
+import { z as z2 } from "zod";
+init_db();
+init_db();
+init_schema();
+import { eq as eq2 } from "drizzle-orm";
+var implementationTasksRouter = router({
+  // Get all tasks
+  list: publicProcedure.query(async () => {
+    return await getAllImplementationTasks();
+  }),
+  // Get tasks by phase
+  listByPhase: publicProcedure.input(z2.object({ phase: z2.string() })).query(async ({ input }) => {
+    return await getImplementationTasksByPhase(input.phase);
+  }),
+  // Get task statistics
+  stats: publicProcedure.query(async () => {
+    const tasks = await getAllImplementationTasks();
+    const total = tasks.length;
+    const completed = tasks.filter((t2) => t2.status === "completed").length;
+    const inProgress = tasks.filter((t2) => t2.status === "in_progress").length;
+    const pending = tasks.filter((t2) => t2.status === "pending").length;
+    const phases = Array.from(new Set(tasks.map((t2) => t2.phase)));
+    const phaseStats = phases.map((phase) => {
+      const phaseTasks = tasks.filter((t2) => t2.phase === phase);
+      return {
+        phase,
+        total: phaseTasks.length,
+        completed: phaseTasks.filter((t2) => t2.status === "completed").length,
+        inProgress: phaseTasks.filter((t2) => t2.status === "in_progress").length,
+        pending: phaseTasks.filter((t2) => t2.status === "pending").length,
+        progress: Math.round(phaseTasks.filter((t2) => t2.status === "completed").length / phaseTasks.length * 100)
+      };
+    });
+    return {
+      total,
+      completed,
+      inProgress,
+      pending,
+      progress: total > 0 ? Math.round(completed / total * 100) : 0,
+      phases: phaseStats
+    };
+  }),
+  // Toggle task status (admin only)
+  toggleStatus: adminProcedure.input(z2.object({
+    taskId: z2.number(),
+    status: z2.enum(["pending", "in_progress", "completed"])
+  })).mutation(async ({ input, ctx }) => {
+    return await updateImplementationTaskStatus(input.taskId, input.status, ctx.user?.id);
+  }),
+  // Bulk create tasks (admin only, for initial setup)
+  bulkCreate: adminProcedure.input(z2.array(z2.object({
+    phase: z2.string(),
+    title: z2.string(),
+    description: z2.string().optional(),
+    estimatedHours: z2.number().optional(),
+    priority: z2.enum(["high", "medium", "low"]).default("medium"),
+    order: z2.number().default(0)
+  }))).mutation(async ({ input }) => {
+    const db = await getDb();
+    if (!db) throw new Error("Database not available");
+    const results = await db.insert(implementationTasks).values(input);
+    return { success: true, count: input.length };
+  }),
+  // Delete task (admin only)
+  delete: adminProcedure.input(z2.object({ taskId: z2.number() })).mutation(async ({ input }) => {
+    const db = await getDb();
+    if (!db) throw new Error("Database not available");
+    await db.delete(implementationTasks).where(eq2(implementationTasks.id, input.taskId));
+    return { success: true };
+  })
+});
+
+// server/routers.ts
 init_schema();
 init_storage();
-import { TRPCError as TRPCError3 } from "@trpc/server";
-import { z as z2 } from "zod";
-import { desc as desc3, eq as eq4, isNotNull, gte, sql as sql3 } from "drizzle-orm";
+import { z as z3 } from "zod";
+import { desc as desc3, eq as eq5, isNotNull, gte, sql as sql3 } from "drizzle-orm";
 import crypto3 from "crypto";
 var appRouter = router({
   // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
+  implementationTasks: implementationTasksRouter,
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -2277,9 +2686,9 @@ var appRouter = router({
       };
     }),
     // Password-based login
-    loginWithPassword: publicProcedure.input(z2.object({
-      email: z2.string().email(),
-      password: z2.string().min(6)
+    loginWithPassword: publicProcedure.input(z3.object({
+      email: z3.string().email(),
+      password: z3.string().min(6)
     })).mutation(async ({ input, ctx }) => {
       const { authenticateWithPassword: authenticateWithPassword2 } = await Promise.resolve().then(() => (init_passwordAuth(), passwordAuth_exports));
       const user = await authenticateWithPassword2(input.email, input.password);
@@ -2305,8 +2714,8 @@ var appRouter = router({
       return { success: true, user };
     }),
     // Request password reset
-    requestPasswordReset: publicProcedure.input(z2.object({
-      email: z2.string().email()
+    requestPasswordReset: publicProcedure.input(z3.object({
+      email: z3.string().email()
     })).mutation(async ({ input }) => {
       const { generatePasswordResetToken: generatePasswordResetToken2 } = await Promise.resolve().then(() => (init_passwordAuth(), passwordAuth_exports));
       const token = await generatePasswordResetToken2(input.email);
@@ -2323,9 +2732,9 @@ var appRouter = router({
       return { success: true, message: "Om e-postadressen finns i systemet kommer du att f\xE5 ett \xE5terst\xE4llningsmail" };
     }),
     // Reset password with token
-    resetPassword: publicProcedure.input(z2.object({
-      token: z2.string(),
-      newPassword: z2.string().min(8)
+    resetPassword: publicProcedure.input(z3.object({
+      token: z3.string(),
+      newPassword: z3.string().min(8)
     })).mutation(async ({ input }) => {
       const { verifyPasswordResetToken: verifyPasswordResetToken2, resetPassword: resetPassword2 } = await Promise.resolve().then(() => (init_passwordAuth(), passwordAuth_exports));
       const userId = await verifyPasswordResetToken2(input.token);
@@ -2345,8 +2754,8 @@ var appRouter = router({
       return { success: true, message: "L\xF6senordet har \xE5terst\xE4llts" };
     }),
     // Set password for first-time users
-    setPassword: protectedProcedure.input(z2.object({
-      password: z2.string().min(8)
+    setPassword: protectedProcedure.input(z3.object({
+      password: z3.string().min(8)
     })).mutation(async ({ input, ctx }) => {
       const { setUserPassword: setUserPassword2 } = await Promise.resolve().then(() => (init_passwordAuth(), passwordAuth_exports));
       const success = await setUserPassword2(ctx.user.id, input.password);
@@ -2371,11 +2780,11 @@ var appRouter = router({
       return await db.select().from(news).orderBy(desc3(news.createdAt));
     }),
     create: manageNewsProcedure.input(
-      z2.object({
-        title: z2.string().min(1),
-        content: z2.string().min(1),
-        imageUrl: z2.string().optional(),
-        publishedAt: z2.date().optional()
+      z3.object({
+        title: z3.string().min(1),
+        content: z3.string().min(1),
+        imageUrl: z3.string().optional(),
+        publishedAt: z3.date().optional()
       })
     ).mutation(async ({ input, ctx }) => {
       const db = await getDb();
@@ -2387,34 +2796,34 @@ var appRouter = router({
       return result;
     }),
     update: manageNewsProcedure.input(
-      z2.object({
-        id: z2.number(),
-        title: z2.string().min(1).optional(),
-        content: z2.string().min(1).optional(),
-        imageUrl: z2.string().optional(),
-        publishedAt: z2.date().optional()
+      z3.object({
+        id: z3.number(),
+        title: z3.string().min(1).optional(),
+        content: z3.string().min(1).optional(),
+        imageUrl: z3.string().optional(),
+        publishedAt: z3.date().optional()
       })
     ).mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       const { id, ...data } = input;
-      await db.update(news).set(data).where(eq4(news.id, id));
+      await db.update(news).set(data).where(eq5(news.id, id));
       return { success: true };
     }),
-    delete: manageNewsProcedure.input(z2.object({ id: z2.number() })).mutation(async ({ input }) => {
+    delete: manageNewsProcedure.input(z3.object({ id: z3.number() })).mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
-      await db.delete(news).where(eq4(news.id, input.id));
+      await db.delete(news).where(eq5(news.id, input.id));
       return { success: true };
     })
   }),
   membership: router({
     submit: publicProcedure.input(
-      z2.object({
-        name: z2.string().min(1),
-        email: z2.string().email(),
-        phone: z2.string().optional(),
-        message: z2.string().optional()
+      z3.object({
+        name: z3.string().min(1),
+        email: z3.string().email(),
+        phone: z3.string().optional(),
+        message: z3.string().optional()
       })
     ).mutation(async ({ input }) => {
       const db = await getDb();
@@ -2428,14 +2837,14 @@ var appRouter = router({
       return await db.select().from(membershipApplications).orderBy(desc3(membershipApplications.createdAt));
     }),
     updateStatus: manageMembersProcedure.input(
-      z2.object({
-        id: z2.number(),
-        status: z2.enum(["pending", "approved", "rejected"])
+      z3.object({
+        id: z3.number(),
+        status: z3.enum(["pending", "approved", "rejected"])
       })
     ).mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
-      await db.update(membershipApplications).set({ status: input.status }).where(eq4(membershipApplications.id, input.id));
+      await db.update(membershipApplications).set({ status: input.status }).where(eq5(membershipApplications.id, input.id));
       return { success: true };
     })
   }),
@@ -2444,18 +2853,18 @@ var appRouter = router({
       return ctx.user;
     }),
     update: protectedProcedure.input(
-      z2.object({
-        name: z2.string().optional(),
-        email: z2.string().email().optional(),
-        phone: z2.string().optional(),
-        streetAddress: z2.string().optional(),
-        postalCode: z2.string().optional(),
-        city: z2.string().optional()
+      z3.object({
+        name: z3.string().optional(),
+        email: z3.string().email().optional(),
+        phone: z3.string().optional(),
+        streetAddress: z3.string().optional(),
+        postalCode: z3.string().optional(),
+        city: z3.string().optional()
       })
     ).mutation(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
-      await db.update(users).set(input).where(eq4(users.id, ctx.user.id));
+      await db.update(users).set(input).where(eq5(users.id, ctx.user.id));
       return { success: true };
     })
   }),
@@ -2464,25 +2873,25 @@ var appRouter = router({
     list: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const user = await db.select().from(users).where(eq4(users.id, ctx.user.id)).limit(1);
+      const user = await db.select().from(users).where(eq5(users.id, ctx.user.id)).limit(1);
       if (!user[0] || user[0].role !== "admin") {
         throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
       }
       return await db.select().from(roles);
     }),
     // Create new role (huvudadmin only)
-    create: protectedProcedure.input(z2.object({
-      name: z2.string().min(1),
-      description: z2.string().optional(),
-      permissions: z2.array(z2.string())
+    create: protectedProcedure.input(z3.object({
+      name: z3.string().min(1),
+      description: z3.string().optional(),
+      permissions: z3.array(z3.string())
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const user = await db.select().from(users).where(eq4(users.id, ctx.user.id)).limit(1);
+      const user = await db.select().from(users).where(eq5(users.id, ctx.user.id)).limit(1);
       if (!user[0]?.roleId) {
         throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
       }
-      const userRole = await db.select().from(roles).where(eq4(roles.id, user[0].roleId)).limit(1);
+      const userRole = await db.select().from(roles).where(eq5(roles.id, user[0].roleId)).limit(1);
       if (!userRole[0] || userRole[0].name !== "huvudadmin") {
         throw new TRPCError3({ code: "FORBIDDEN", message: "Only huvudadmin can create roles" });
       }
@@ -2495,19 +2904,19 @@ var appRouter = router({
       return { success: true };
     }),
     // Update role (huvudadmin only)
-    update: protectedProcedure.input(z2.object({
-      id: z2.number(),
-      name: z2.string().optional(),
-      description: z2.string().optional(),
-      permissions: z2.array(z2.string()).optional()
+    update: protectedProcedure.input(z3.object({
+      id: z3.number(),
+      name: z3.string().optional(),
+      description: z3.string().optional(),
+      permissions: z3.array(z3.string()).optional()
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const user = await db.select().from(users).where(eq4(users.id, ctx.user.id)).limit(1);
+      const user = await db.select().from(users).where(eq5(users.id, ctx.user.id)).limit(1);
       if (!user[0]?.roleId) {
         throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
       }
-      const userRole = await db.select().from(roles).where(eq4(roles.id, user[0].roleId)).limit(1);
+      const userRole = await db.select().from(roles).where(eq5(roles.id, user[0].roleId)).limit(1);
       if (!userRole[0] || userRole[0].name !== "huvudadmin") {
         throw new TRPCError3({ code: "FORBIDDEN", message: "Only huvudadmin can update roles" });
       }
@@ -2515,26 +2924,26 @@ var appRouter = router({
       if (input.name) updateData.name = input.name;
       if (input.description !== void 0) updateData.description = input.description;
       if (input.permissions) updateData.permissions = input.permissions;
-      await db.update(roles).set(updateData).where(eq4(roles.id, input.id));
+      await db.update(roles).set(updateData).where(eq5(roles.id, input.id));
       return { success: true };
     }),
     // Delete role (huvudadmin only, cannot delete system roles)
-    delete: protectedProcedure.input(z2.object({ id: z2.number() })).mutation(async ({ ctx, input }) => {
+    delete: protectedProcedure.input(z3.object({ id: z3.number() })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const user = await db.select().from(users).where(eq4(users.id, ctx.user.id)).limit(1);
+      const user = await db.select().from(users).where(eq5(users.id, ctx.user.id)).limit(1);
       if (!user[0]?.roleId) {
         throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
       }
-      const userRole = await db.select().from(roles).where(eq4(roles.id, user[0].roleId)).limit(1);
+      const userRole = await db.select().from(roles).where(eq5(roles.id, user[0].roleId)).limit(1);
       if (!userRole[0] || userRole[0].name !== "huvudadmin") {
         throw new TRPCError3({ code: "FORBIDDEN", message: "Only huvudadmin can delete roles" });
       }
-      const roleToDelete = await db.select().from(roles).where(eq4(roles.id, input.id)).limit(1);
+      const roleToDelete = await db.select().from(roles).where(eq5(roles.id, input.id)).limit(1);
       if (roleToDelete[0] && roleToDelete[0].isCustom === 0) {
         throw new TRPCError3({ code: "BAD_REQUEST", message: "Cannot delete system roles" });
       }
-      await db.delete(roles).where(eq4(roles.id, input.id));
+      await db.delete(roles).where(eq5(roles.id, input.id));
       return { success: true };
     })
   }),
@@ -2543,32 +2952,32 @@ var appRouter = router({
     list: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const user = await db.select().from(users).where(eq4(users.id, ctx.user.id)).limit(1);
+      const user = await db.select().from(users).where(eq5(users.id, ctx.user.id)).limit(1);
       if (!user[0]?.roleId) {
         throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
       }
-      const userRole = await db.select().from(roles).where(eq4(roles.id, user[0].roleId)).limit(1);
+      const userRole = await db.select().from(roles).where(eq5(roles.id, user[0].roleId)).limit(1);
       if (!userRole[0] || userRole[0].name !== "huvudadmin") {
         throw new TRPCError3({ code: "FORBIDDEN", message: "Only huvudadmin can view all users" });
       }
       return await db.select().from(users);
     }),
     // Assign role to user (huvudadmin only)
-    assignRole: protectedProcedure.input(z2.object({
-      userId: z2.number(),
-      roleId: z2.number()
+    assignRole: protectedProcedure.input(z3.object({
+      userId: z3.number(),
+      roleId: z3.number()
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const user = await db.select().from(users).where(eq4(users.id, ctx.user.id)).limit(1);
+      const user = await db.select().from(users).where(eq5(users.id, ctx.user.id)).limit(1);
       if (!user[0]?.roleId) {
         throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
       }
-      const userRole = await db.select().from(roles).where(eq4(roles.id, user[0].roleId)).limit(1);
+      const userRole = await db.select().from(roles).where(eq5(roles.id, user[0].roleId)).limit(1);
       if (!userRole[0] || userRole[0].name !== "huvudadmin") {
         throw new TRPCError3({ code: "FORBIDDEN", message: "Only huvudadmin can assign roles" });
       }
-      await db.update(users).set({ roleId: input.roleId }).where(eq4(users.id, input.userId));
+      await db.update(users).set({ roleId: input.roleId }).where(eq5(users.id, input.userId));
       return { success: true };
     })
   }),
@@ -2580,22 +2989,22 @@ var appRouter = router({
       return await db.select().from(galleryPhotos).orderBy(desc3(galleryPhotos.createdAt));
     }),
     // Get photos by category (public)
-    byCategory: publicProcedure.input(z2.object({ category: z2.string() })).query(async ({ input }) => {
+    byCategory: publicProcedure.input(z3.object({ category: z3.string() })).query(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      return await db.select().from(galleryPhotos).where(eq4(galleryPhotos.category, input.category)).orderBy(desc3(galleryPhotos.createdAt));
+      return await db.select().from(galleryPhotos).where(eq5(galleryPhotos.category, input.category)).orderBy(desc3(galleryPhotos.createdAt));
     }),
     // Upload photo with automatic compression (admin only)
-    upload: protectedProcedure.input(z2.object({
-      title: z2.string().min(1),
-      description: z2.string().optional(),
-      category: z2.string().optional(),
-      imageBase64: z2.string()
+    upload: protectedProcedure.input(z3.object({
+      title: z3.string().min(1),
+      description: z3.string().optional(),
+      category: z3.string().optional(),
+      imageBase64: z3.string()
       // Base64 encoded image
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const user = await db.select().from(users).where(eq4(users.id, ctx.user.id)).limit(1);
+      const user = await db.select().from(users).where(eq5(users.id, ctx.user.id)).limit(1);
       if (!user[0] || user[0].role !== "admin") {
         throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
       }
@@ -2616,15 +3025,15 @@ var appRouter = router({
       return { success: true, images: processedImages };
     }),
     // Create photo (admin only) - Legacy method
-    create: protectedProcedure.input(z2.object({
-      title: z2.string().min(1),
-      description: z2.string().optional(),
-      imageUrl: z2.string().url(),
-      category: z2.string().optional()
+    create: protectedProcedure.input(z3.object({
+      title: z3.string().min(1),
+      description: z3.string().optional(),
+      imageUrl: z3.string().url(),
+      category: z3.string().optional()
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const user = await db.select().from(users).where(eq4(users.id, ctx.user.id)).limit(1);
+      const user = await db.select().from(users).where(eq5(users.id, ctx.user.id)).limit(1);
       if (!user[0] || user[0].role !== "admin") {
         throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
       }
@@ -2635,31 +3044,31 @@ var appRouter = router({
       return { success: true };
     }),
     // Update photo (admin only)
-    update: protectedProcedure.input(z2.object({
-      id: z2.number(),
-      title: z2.string().optional(),
-      description: z2.string().optional(),
-      category: z2.string().optional()
+    update: protectedProcedure.input(z3.object({
+      id: z3.number(),
+      title: z3.string().optional(),
+      description: z3.string().optional(),
+      category: z3.string().optional()
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const user = await db.select().from(users).where(eq4(users.id, ctx.user.id)).limit(1);
+      const user = await db.select().from(users).where(eq5(users.id, ctx.user.id)).limit(1);
       if (!user[0] || user[0].role !== "admin") {
         throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
       }
       const { id, ...updateData } = input;
-      await db.update(galleryPhotos).set(updateData).where(eq4(galleryPhotos.id, id));
+      await db.update(galleryPhotos).set(updateData).where(eq5(galleryPhotos.id, id));
       return { success: true };
     }),
     // Delete photo (admin only)
-    delete: protectedProcedure.input(z2.object({ id: z2.number() })).mutation(async ({ ctx, input }) => {
+    delete: protectedProcedure.input(z3.object({ id: z3.number() })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const user = await db.select().from(users).where(eq4(users.id, ctx.user.id)).limit(1);
+      const user = await db.select().from(users).where(eq5(users.id, ctx.user.id)).limit(1);
       if (!user[0] || user[0].role !== "admin") {
         throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
       }
-      await db.delete(galleryPhotos).where(eq4(galleryPhotos.id, input.id));
+      await db.delete(galleryPhotos).where(eq5(galleryPhotos.id, input.id));
       return { success: true };
     })
   }),
@@ -2674,28 +3083,28 @@ var appRouter = router({
     listAll: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const user = await db.select().from(users).where(eq4(users.id, ctx.user.id)).limit(1);
+      const user = await db.select().from(users).where(eq5(users.id, ctx.user.id)).limit(1);
       if (!user[0] || user[0].role !== "admin") {
         throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
       }
       return await db.select().from(events).orderBy(desc3(events.eventDate));
     }),
     // Create event (admin only)
-    create: protectedProcedure.input(z2.object({
-      title: z2.string().min(1),
-      description: z2.string().optional(),
-      eventDate: z2.date(),
-      eventTime: z2.string().optional(),
-      location: z2.string().optional(),
-      type: z2.string().optional(),
-      maxParticipants: z2.number().optional(),
-      registrationDeadline: z2.date().optional(),
-      status: z2.enum(["draft", "published", "cancelled", "completed"]).optional(),
-      allowWaitlist: z2.boolean().optional()
+    create: protectedProcedure.input(z3.object({
+      title: z3.string().min(1),
+      description: z3.string().optional(),
+      eventDate: z3.date(),
+      eventTime: z3.string().optional(),
+      location: z3.string().optional(),
+      type: z3.string().optional(),
+      maxParticipants: z3.number().optional(),
+      registrationDeadline: z3.date().optional(),
+      status: z3.enum(["draft", "published", "cancelled", "completed"]).optional(),
+      allowWaitlist: z3.boolean().optional()
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const user = await db.select().from(users).where(eq4(users.id, ctx.user.id)).limit(1);
+      const user = await db.select().from(users).where(eq5(users.id, ctx.user.id)).limit(1);
       if (!user[0] || user[0].role !== "admin") {
         throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
       }
@@ -2707,22 +3116,22 @@ var appRouter = router({
       return { success: true };
     }),
     // Update event (admin only)
-    update: protectedProcedure.input(z2.object({
-      id: z2.number(),
-      title: z2.string().optional(),
-      description: z2.string().optional(),
-      eventDate: z2.date().optional(),
-      eventTime: z2.string().optional(),
-      location: z2.string().optional(),
-      type: z2.string().optional(),
-      maxParticipants: z2.number().optional(),
-      registrationDeadline: z2.date().optional(),
-      status: z2.enum(["draft", "published", "cancelled", "completed"]).optional(),
-      allowWaitlist: z2.boolean().optional()
+    update: protectedProcedure.input(z3.object({
+      id: z3.number(),
+      title: z3.string().optional(),
+      description: z3.string().optional(),
+      eventDate: z3.date().optional(),
+      eventTime: z3.string().optional(),
+      location: z3.string().optional(),
+      type: z3.string().optional(),
+      maxParticipants: z3.number().optional(),
+      registrationDeadline: z3.date().optional(),
+      status: z3.enum(["draft", "published", "cancelled", "completed"]).optional(),
+      allowWaitlist: z3.boolean().optional()
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const user = await db.select().from(users).where(eq4(users.id, ctx.user.id)).limit(1);
+      const user = await db.select().from(users).where(eq5(users.id, ctx.user.id)).limit(1);
       if (!user[0] || user[0].role !== "admin") {
         throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
       }
@@ -2730,39 +3139,39 @@ var appRouter = router({
       await db.update(events).set({
         ...updateData,
         ...allowWaitlist !== void 0 ? { allowWaitlist: allowWaitlist ? 1 : 0 } : {}
-      }).where(eq4(events.id, id));
+      }).where(eq5(events.id, id));
       return { success: true };
     }),
     // Delete event (admin only)
-    delete: protectedProcedure.input(z2.object({ id: z2.number() })).mutation(async ({ ctx, input }) => {
+    delete: protectedProcedure.input(z3.object({ id: z3.number() })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const user = await db.select().from(users).where(eq4(users.id, ctx.user.id)).limit(1);
+      const user = await db.select().from(users).where(eq5(users.id, ctx.user.id)).limit(1);
       if (!user[0] || user[0].role !== "admin") {
         throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
       }
-      await db.delete(events).where(eq4(events.id, input.id));
+      await db.delete(events).where(eq5(events.id, input.id));
       return { success: true };
     }),
     // Get event with registrations (admin only)
-    getWithRegistrations: protectedProcedure.input(z2.object({ id: z2.number() })).query(async ({ ctx, input }) => {
+    getWithRegistrations: protectedProcedure.input(z3.object({ id: z3.number() })).query(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const user = await db.select().from(users).where(eq4(users.id, ctx.user.id)).limit(1);
+      const user = await db.select().from(users).where(eq5(users.id, ctx.user.id)).limit(1);
       if (!user[0] || user[0].role !== "admin") {
         throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
       }
       return await getEventWithRegistrations(input.id);
     }),
     // Register for event (authenticated users)
-    register: protectedProcedure.input(z2.object({
-      eventId: z2.number(),
-      notes: z2.string().optional()
+    register: protectedProcedure.input(z3.object({
+      eventId: z3.number(),
+      notes: z3.string().optional()
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       const { eventRegistrations: eventRegistrations2 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
-      const event = await db.select().from(events).where(eq4(events.id, input.eventId)).limit(1);
+      const event = await db.select().from(events).where(eq5(events.id, input.eventId)).limit(1);
       if (event.length === 0) {
         throw new TRPCError3({ code: "NOT_FOUND", message: "Evenemang hittades inte" });
       }
@@ -2786,7 +3195,7 @@ var appRouter = router({
         }
       }
       if (existing) {
-        await db.update(eventRegistrations2).set({ status, notes: input.notes, registeredAt: /* @__PURE__ */ new Date(), cancelledAt: null }).where(eq4(eventRegistrations2.id, existing.id));
+        await db.update(eventRegistrations2).set({ status, notes: input.notes, registeredAt: /* @__PURE__ */ new Date(), cancelledAt: null }).where(eq5(eventRegistrations2.id, existing.id));
       } else {
         await db.insert(eventRegistrations2).values({
           eventId: input.eventId,
@@ -2798,7 +3207,7 @@ var appRouter = router({
       return { success: true, status };
     }),
     // Cancel event registration
-    cancelRegistration: protectedProcedure.input(z2.object({ eventId: z2.number() })).mutation(async ({ ctx, input }) => {
+    cancelRegistration: protectedProcedure.input(z3.object({ eventId: z3.number() })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       const { eventRegistrations: eventRegistrations2 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
@@ -2806,7 +3215,7 @@ var appRouter = router({
       if (!registration) {
         throw new TRPCError3({ code: "NOT_FOUND", message: "Ingen anm\xE4lan hittades" });
       }
-      await db.update(eventRegistrations2).set({ status: "cancelled", cancelledAt: /* @__PURE__ */ new Date() }).where(eq4(eventRegistrations2.id, registration.id));
+      await db.update(eventRegistrations2).set({ status: "cancelled", cancelledAt: /* @__PURE__ */ new Date() }).where(eq5(eventRegistrations2.id, registration.id));
       return { success: true };
     }),
     // Get user's registered events
@@ -2814,17 +3223,73 @@ var appRouter = router({
       return await getUserRegisteredEvents(ctx.user.id);
     }),
     // Get user's registration status for an event
-    myRegistration: protectedProcedure.input(z2.object({ eventId: z2.number() })).query(async ({ ctx, input }) => {
+    myRegistration: protectedProcedure.input(z3.object({ eventId: z3.number() })).query(async ({ ctx, input }) => {
       return await getUserEventRegistration(input.eventId, ctx.user.id);
-      return { success: true };
+    }),
+    // Send event invitations (admin only)
+    sendInvitations: protectedProcedure.input(z3.object({
+      eventId: z3.number(),
+      recipientGroups: z3.array(z3.string())
+    })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+      const user = await db.select().from(users).where(eq5(users.id, ctx.user.id)).limit(1);
+      if (!user[0] || user[0].role !== "admin") {
+        throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
+      }
+      let recipients = [];
+      for (const group of input.recipientGroups) {
+        if (group === "all_active") {
+          const allActive = await db.select().from(users).where(isNotNull(users.email));
+          recipients.push(...allActive);
+        } else if (group === "board") {
+          const boardMembers2 = await db.select().from(users).where(eq5(users.role, "admin"));
+          recipients.push(...boardMembers2);
+        } else if (group === "paid_current_year") {
+          const currentYear = (/* @__PURE__ */ new Date()).getFullYear();
+          const paidMembers = await db.select().from(users).where(isNotNull(users.email));
+          recipients.push(...paidMembers);
+        } else if (group === "not_paid") {
+          const notPaidMembers = await db.select().from(users).where(isNotNull(users.email));
+          recipients.push(...notPaidMembers);
+        }
+      }
+      const uniqueRecipients = Array.from(new Set(recipients.map((r) => r.id))).map((id) => recipients.find((r) => r.id === id));
+      const event = await db.select().from(events).where(eq5(events.id, input.eventId)).limit(1);
+      if (event.length === 0) {
+        throw new TRPCError3({ code: "NOT_FOUND", message: "Evenemang hittades inte" });
+      }
+      const eventData = event[0];
+      const { sendEventInvitation: sendEventInvitation2 } = await Promise.resolve().then(() => (init_email(), email_exports));
+      let sentCount = 0;
+      let failedCount = 0;
+      for (const recipient of uniqueRecipients) {
+        if (!recipient?.email) continue;
+        const rsvpUrl = `${process.env.VITE_OAUTH_PORTAL_URL || "https://3000-ipo4eocgiqzv8iuvjeh1f-a13ca33c.us2.manus.computer"}/calendar?event=${eventData.id}`;
+        const success = await sendEventInvitation2({
+          to: recipient.email,
+          recipientName: recipient.name || "Medlem",
+          eventTitle: eventData.title,
+          eventDate: new Date(eventData.eventDate),
+          eventLocation: eventData.location || void 0,
+          eventDescription: eventData.description || void 0,
+          rsvpUrl
+        });
+        if (success) {
+          sentCount++;
+        } else {
+          failedCount++;
+        }
+      }
+      return { success: true, sentCount, failedCount };
     })
   }),
   cms: router({
     // Get all content for a specific page (public)
-    getPageContent: publicProcedure.input(z2.object({ page: z2.string() })).query(async ({ input }) => {
+    getPageContent: publicProcedure.input(z3.object({ page: z3.string() })).query(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      return await db.select().from(pageContent).where(eq4(pageContent.page, input.page)).orderBy(pageContent.order);
+      return await db.select().from(pageContent).where(eq5(pageContent.page, input.page)).orderBy(pageContent.order);
     }),
     // Get all page content (admin)
     getAllContent: adminProcedure.query(async () => {
@@ -2833,25 +3298,25 @@ var appRouter = router({
       return await db.select().from(pageContent).orderBy(pageContent.page, pageContent.order);
     }),
     // Update page content (admin)
-    updateContent: adminProcedure.input(z2.object({
-      id: z2.number(),
-      content: z2.string().optional(),
-      order: z2.number().optional(),
-      published: z2.number().optional()
+    updateContent: adminProcedure.input(z3.object({
+      id: z3.number(),
+      content: z3.string().optional(),
+      order: z3.number().optional(),
+      published: z3.number().optional()
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       const { id, ...updateData } = input;
-      await db.update(pageContent).set({ ...updateData, updatedBy: ctx.user.id }).where(eq4(pageContent.id, id));
+      await db.update(pageContent).set({ ...updateData, updatedBy: ctx.user.id }).where(eq5(pageContent.id, id));
       return { success: true };
     }),
     // Create new content section (admin)
-    createContent: adminProcedure.input(z2.object({
-      page: z2.string(),
-      sectionKey: z2.string(),
-      type: z2.string(),
-      content: z2.string(),
-      order: z2.number().default(0)
+    createContent: adminProcedure.input(z3.object({
+      page: z3.string(),
+      sectionKey: z3.string(),
+      type: z3.string(),
+      content: z3.string(),
+      order: z3.number().default(0)
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
@@ -2861,10 +3326,10 @@ var appRouter = router({
       });
       return { success: true };
     }),
-    updatePageContent: protectedProcedure.input(z2.object({ id: z2.number(), content: z2.string().nullable() })).mutation(async ({ ctx, input }) => {
+    updatePageContent: protectedProcedure.input(z3.object({ id: z3.number(), content: z3.string().nullable() })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const [current] = await db.select().from(pageContent).where(eq4(pageContent.id, input.id)).limit(1);
+      const [current] = await db.select().from(pageContent).where(eq5(pageContent.id, input.id)).limit(1);
       if (current) {
         await db.insert(contentHistory).values({
           contentId: input.id,
@@ -2872,10 +3337,10 @@ var appRouter = router({
           updatedBy: ctx.user.id
         });
       }
-      await db.update(pageContent).set({ content: input.content }).where(eq4(pageContent.id, input.id));
+      await db.update(pageContent).set({ content: input.content }).where(eq5(pageContent.id, input.id));
       return { success: true };
     }),
-    getContentHistory: protectedProcedure.input(z2.object({ contentId: z2.number() })).query(async ({ input }) => {
+    getContentHistory: protectedProcedure.input(z3.object({ contentId: z3.number() })).query(async ({ input }) => {
       const db = await getDb();
       if (!db) return [];
       const history = await db.select({
@@ -2884,15 +3349,15 @@ var appRouter = router({
         createdAt: contentHistory.createdAt,
         updatedBy: contentHistory.updatedBy,
         userName: users.name
-      }).from(contentHistory).leftJoin(users, eq4(contentHistory.updatedBy, users.id)).where(eq4(contentHistory.contentId, input.contentId)).orderBy(desc3(contentHistory.createdAt)).limit(20);
+      }).from(contentHistory).leftJoin(users, eq5(contentHistory.updatedBy, users.id)).where(eq5(contentHistory.contentId, input.contentId)).orderBy(desc3(contentHistory.createdAt)).limit(20);
       return history;
     }),
-    restoreContentVersion: protectedProcedure.input(z2.object({ contentId: z2.number(), historyId: z2.number() })).mutation(async ({ ctx, input }) => {
+    restoreContentVersion: protectedProcedure.input(z3.object({ contentId: z3.number(), historyId: z3.number() })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const [history] = await db.select().from(contentHistory).where(eq4(contentHistory.id, input.historyId)).limit(1);
+      const [history] = await db.select().from(contentHistory).where(eq5(contentHistory.id, input.historyId)).limit(1);
       if (!history) throw new TRPCError3({ code: "NOT_FOUND", message: "History not found" });
-      const [current] = await db.select().from(pageContent).where(eq4(pageContent.id, input.contentId)).limit(1);
+      const [current] = await db.select().from(pageContent).where(eq5(pageContent.id, input.contentId)).limit(1);
       if (current) {
         await db.insert(contentHistory).values({
           contentId: input.contentId,
@@ -2900,14 +3365,14 @@ var appRouter = router({
           updatedBy: ctx.user.id
         });
       }
-      await db.update(pageContent).set({ content: history.content }).where(eq4(pageContent.id, input.contentId));
+      await db.update(pageContent).set({ content: history.content }).where(eq5(pageContent.id, input.contentId));
       return { success: true };
     }),
     // Delete content section (admin)
-    deleteContent: adminProcedure.input(z2.object({ id: z2.number() })).mutation(async ({ input }) => {
+    deleteContent: adminProcedure.input(z3.object({ id: z3.number() })).mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      await db.delete(pageContent).where(eq4(pageContent.id, input.id));
+      await db.delete(pageContent).where(eq5(pageContent.id, input.id));
       return { success: true };
     }),
     // Get site settings (public)
@@ -2917,16 +3382,16 @@ var appRouter = router({
       return await db.select().from(siteSettings);
     }),
     // Update site setting (admin)
-    updateSetting: adminProcedure.input(z2.object({
-      key: z2.string(),
-      value: z2.string(),
-      type: z2.string().optional()
+    updateSetting: adminProcedure.input(z3.object({
+      key: z3.string(),
+      value: z3.string(),
+      type: z3.string().optional()
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const existing = await db.select().from(siteSettings).where(eq4(siteSettings.key, input.key)).limit(1);
+      const existing = await db.select().from(siteSettings).where(eq5(siteSettings.key, input.key)).limit(1);
       if (existing.length > 0) {
-        await db.update(siteSettings).set({ value: input.value, type: input.type, updatedBy: ctx.user.id }).where(eq4(siteSettings.key, input.key));
+        await db.update(siteSettings).set({ value: input.value, type: input.type, updatedBy: ctx.user.id }).where(eq5(siteSettings.key, input.key));
       } else {
         await db.insert(siteSettings).values({
           key: input.key,
@@ -2941,54 +3406,54 @@ var appRouter = router({
     getBoardMembers: publicProcedure.query(async () => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      return await db.select().from(boardMembers).where(eq4(boardMembers.active, 1)).orderBy(boardMembers.order);
+      return await db.select().from(boardMembers).where(eq5(boardMembers.active, 1)).orderBy(boardMembers.order);
     }),
     getAllBoardMembers: adminProcedure.query(async () => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       return await db.select().from(boardMembers).orderBy(boardMembers.order);
     }),
-    createBoardMember: adminProcedure.input(z2.object({
-      name: z2.string(),
-      role: z2.string(),
-      phone: z2.string().optional(),
-      email: z2.string().optional(),
-      photo: z2.string().optional(),
-      order: z2.number().default(0)
+    createBoardMember: adminProcedure.input(z3.object({
+      name: z3.string(),
+      role: z3.string(),
+      phone: z3.string().optional(),
+      email: z3.string().optional(),
+      photo: z3.string().optional(),
+      order: z3.number().default(0)
     })).mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       await db.insert(boardMembers).values(input);
       return { success: true };
     }),
-    updateBoardMember: adminProcedure.input(z2.object({
-      id: z2.number(),
-      name: z2.string().optional(),
-      role: z2.string().optional(),
-      phone: z2.string().optional(),
-      email: z2.string().optional(),
-      photo: z2.string().optional(),
-      order: z2.number().optional(),
-      active: z2.number().optional()
+    updateBoardMember: adminProcedure.input(z3.object({
+      id: z3.number(),
+      name: z3.string().optional(),
+      role: z3.string().optional(),
+      phone: z3.string().optional(),
+      email: z3.string().optional(),
+      photo: z3.string().optional(),
+      order: z3.number().optional(),
+      active: z3.number().optional()
     })).mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       const { id, ...updateData } = input;
-      await db.update(boardMembers).set(updateData).where(eq4(boardMembers.id, id));
+      await db.update(boardMembers).set(updateData).where(eq5(boardMembers.id, id));
       return { success: true };
     }),
-    deleteBoardMember: adminProcedure.input(z2.object({ id: z2.number() })).mutation(async ({ input }) => {
+    deleteBoardMember: adminProcedure.input(z3.object({ id: z3.number() })).mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      await db.delete(boardMembers).where(eq4(boardMembers.id, input.id));
+      await db.delete(boardMembers).where(eq5(boardMembers.id, input.id));
       return { success: true };
     })
   }),
   upload: router({
-    image: publicProcedure.input(z2.object({
-      filename: z2.string(),
-      contentType: z2.string(),
-      data: z2.string()
+    image: publicProcedure.input(z3.object({
+      filename: z3.string(),
+      contentType: z3.string(),
+      data: z3.string()
       // base64 encoded
     })).mutation(async ({ input }) => {
       try {
@@ -3015,17 +3480,17 @@ var appRouter = router({
       return await verifyMemberStatus2(ctx.user.id);
     }),
     // Get all members (admin only)
-    list: manageUsersProcedure.input(z2.object({
-      status: z2.enum(["pending", "active", "inactive"]).optional(),
-      memberType: z2.enum(["ordinarie", "hedersmedlem", "stodmedlem"]).optional(),
-      paymentStatus: z2.enum(["paid", "unpaid", "exempt"]).optional(),
-      search: z2.string().optional()
+    list: manageUsersProcedure.input(z3.object({
+      status: z3.enum(["pending", "active", "inactive"]).optional(),
+      memberType: z3.enum(["ordinarie", "hedersmedlem", "stodmedlem"]).optional(),
+      paymentStatus: z3.enum(["paid", "unpaid", "exempt"]).optional(),
+      search: z3.string().optional()
     }).optional()).query(async ({ input }) => {
       const { getMembers: getMembers2 } = await Promise.resolve().then(() => (init_db(), db_exports));
       return await getMembers2(input);
     }),
     // Get member by ID (admin only)
-    getById: manageUsersProcedure.input(z2.object({ id: z2.number() })).query(async ({ input }) => {
+    getById: manageUsersProcedure.input(z3.object({ id: z3.number() })).query(async ({ input }) => {
       const { getMemberById: getMemberById2 } = await Promise.resolve().then(() => (init_db(), db_exports));
       const member = await getMemberById2(input.id);
       if (!member) {
@@ -3034,22 +3499,22 @@ var appRouter = router({
       return member;
     }),
     // Update member (admin only)
-    update: manageUsersProcedure.input(z2.object({
-      id: z2.number(),
-      name: z2.string().optional(),
-      email: z2.string().email().optional(),
-      phone: z2.string().optional(),
-      personnummer: z2.string().optional(),
-      streetAddress: z2.string().optional(),
-      postalCode: z2.string().optional(),
-      city: z2.string().optional(),
-      membershipStatus: z2.enum(["pending", "active", "inactive"]).optional(),
-      membershipNumber: z2.string().optional(),
-      joinYear: z2.number().optional(),
-      memberType: z2.enum(["ordinarie", "hedersmedlem", "stodmedlem"]).optional(),
-      paymentStatus: z2.enum(["paid", "unpaid", "exempt"]).optional(),
-      paymentYear: z2.number().optional(),
-      showInDirectory: z2.number().optional()
+    update: manageUsersProcedure.input(z3.object({
+      id: z3.number(),
+      name: z3.string().optional(),
+      email: z3.string().email().optional(),
+      phone: z3.string().optional(),
+      personnummer: z3.string().optional(),
+      streetAddress: z3.string().optional(),
+      postalCode: z3.string().optional(),
+      city: z3.string().optional(),
+      membershipStatus: z3.enum(["pending", "active", "inactive"]).optional(),
+      membershipNumber: z3.string().optional(),
+      joinYear: z3.number().optional(),
+      memberType: z3.enum(["ordinarie", "hedersmedlem", "stodmedlem"]).optional(),
+      paymentStatus: z3.enum(["paid", "unpaid", "exempt"]).optional(),
+      paymentYear: z3.number().optional(),
+      showInDirectory: z3.number().optional()
     })).mutation(async ({ input }) => {
       const { id, ...data } = input;
       const { updateMember: updateMember2 } = await Promise.resolve().then(() => (init_db(), db_exports));
@@ -3066,7 +3531,7 @@ var appRouter = router({
       return await getMembersForDirectory2();
     }),
     // Import members from CSV (admin only)
-    importCSV: manageUsersProcedure.input(z2.object({ csvData: z2.string() })).mutation(async ({ input }) => {
+    importCSV: manageUsersProcedure.input(z3.object({ csvData: z3.string() })).mutation(async ({ input }) => {
       const { importMembersFromCSV: importMembersFromCSV2 } = await Promise.resolve().then(() => (init_memberImportExport(), memberImportExport_exports));
       return await importMembersFromCSV2(input.csvData);
     }),
@@ -3080,7 +3545,7 @@ var appRouter = router({
       };
     }),
     // Send payment reminder (admin only)
-    sendPaymentReminder: manageUsersProcedure.input(z2.object({ memberId: z2.number() })).mutation(async ({ input }) => {
+    sendPaymentReminder: manageUsersProcedure.input(z3.object({ memberId: z3.number() })).mutation(async ({ input }) => {
       const { getMemberById: getMemberById2 } = await Promise.resolve().then(() => (init_db(), db_exports));
       const member = await getMemberById2(input.memberId);
       if (!member) {
@@ -3091,6 +3556,36 @@ var appRouter = router({
       }
       console.log(`[Payment Reminder] Would send to ${member.email} (${member.name})`);
       return { success: true, message: "Payment reminder sent" };
+    }),
+    // Set password for member (admin only)
+    setPassword: manageUsersProcedure.input(z3.object({
+      memberId: z3.number(),
+      password: z3.string().min(6)
+    })).mutation(async ({ input }) => {
+      const { setUserPassword: setUserPassword2 } = await Promise.resolve().then(() => (init_passwordAuth(), passwordAuth_exports));
+      const { getMemberById: getMemberById2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+      const member = await getMemberById2(input.memberId);
+      if (!member) {
+        throw new TRPCError3({ code: "NOT_FOUND", message: "Member not found" });
+      }
+      await setUserPassword2(input.memberId, input.password);
+      return { success: true, message: "L\xF6senord skapat" };
+    }),
+    // Reset password for member (admin only) - generates temporary password
+    resetPassword: manageUsersProcedure.input(z3.object({ memberId: z3.number() })).mutation(async ({ input }) => {
+      const { setUserPassword: setUserPassword2 } = await Promise.resolve().then(() => (init_passwordAuth(), passwordAuth_exports));
+      const { getMemberById: getMemberById2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+      const member = await getMemberById2(input.memberId);
+      if (!member) {
+        throw new TRPCError3({ code: "NOT_FOUND", message: "Member not found" });
+      }
+      const tempPassword = crypto3.randomBytes(8).toString("hex");
+      await setUserPassword2(input.memberId, tempPassword);
+      return {
+        success: true,
+        tempPassword,
+        message: "L\xF6senord \xE5terst\xE4llt. Tempor\xE4rt l\xF6senord genererat."
+      };
     })
   }),
   // Documents router for PDF upload and sharing
@@ -3100,14 +3595,14 @@ var appRouter = router({
       const db = await getDb();
       if (!db) return [];
       if (!ctx.user) {
-        return db.select().from(documents).where(eq4(documents.accessLevel, "public")).orderBy(desc3(documents.createdAt));
+        return db.select().from(documents).where(eq5(documents.accessLevel, "public")).orderBy(desc3(documents.createdAt));
       } else if (ctx.user.role !== "admin") {
         return db.select().from(documents).where(sql3`${documents.accessLevel} IN ('public', 'members_only')`).orderBy(desc3(documents.createdAt));
       }
       return db.select().from(documents).orderBy(desc3(documents.createdAt));
     }),
     // Get documents by category
-    byCategory: publicProcedure.input(z2.object({ category: z2.string() })).query(async ({ input, ctx }) => {
+    byCategory: publicProcedure.input(z3.object({ category: z3.string() })).query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) return [];
       if (!ctx.user) {
@@ -3115,18 +3610,18 @@ var appRouter = router({
       } else if (ctx.user.role !== "admin") {
         return db.select().from(documents).where(sql3`${documents.category} = ${input.category} AND ${documents.accessLevel} IN ('public', 'members_only')`).orderBy(desc3(documents.createdAt));
       }
-      return db.select().from(documents).where(eq4(documents.category, input.category)).orderBy(desc3(documents.createdAt));
+      return db.select().from(documents).where(eq5(documents.category, input.category)).orderBy(desc3(documents.createdAt));
     }),
     // Upload document (admin only)
-    upload: adminProcedure.input(z2.object({
-      title: z2.string(),
-      description: z2.string().optional(),
-      fileData: z2.string(),
+    upload: adminProcedure.input(z3.object({
+      title: z3.string(),
+      description: z3.string().optional(),
+      fileData: z3.string(),
       // Base64 encoded PDF
-      fileName: z2.string(),
-      fileSize: z2.number(),
-      category: z2.enum(["stadgar", "protokoll", "informationsblad", "arsmoten", "ovrigt"]),
-      accessLevel: z2.enum(["public", "members_only", "admin_only"])
+      fileName: z3.string(),
+      fileSize: z3.number(),
+      category: z3.enum(["stadgar", "protokoll", "informationsblad", "arsmoten", "ovrigt"]),
+      accessLevel: z3.enum(["public", "members_only", "admin_only"])
     })).mutation(async ({ input, ctx }) => {
       if (input.fileSize > 10 * 1024 * 1024) {
         throw new TRPCError3({ code: "BAD_REQUEST", message: "Filen \xE4r f\xF6r stor (max 10MB)" });
@@ -3150,11 +3645,48 @@ var appRouter = router({
       });
       return { success: true, url };
     }),
-    // Delete document (admin only)
-    delete: adminProcedure.input(z2.object({ id: z2.number() })).mutation(async ({ input }) => {
+    // Update document metadata (admin only)
+    update: adminProcedure.input(z3.object({
+      id: z3.number(),
+      title: z3.string(),
+      description: z3.string().optional(),
+      category: z3.enum(["stadgar", "protokoll", "informationsblad", "arsmoten", "ovrigt"]),
+      accessLevel: z3.enum(["public", "members_only", "admin_only"])
+    })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Databas inte tillg\xE4nglig" });
-      await db.delete(documents).where(eq4(documents.id, input.id));
+      const currentDoc = await db.select().from(documents).where(eq5(documents.id, input.id)).limit(1);
+      if (currentDoc.length === 0) {
+        throw new TRPCError3({ code: "NOT_FOUND", message: "Dokument hittades inte" });
+      }
+      const doc = currentDoc[0];
+      const { documentVersions: documentVersions2 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
+      const versions = await db.select().from(documentVersions2).where(eq5(documentVersions2.documentId, input.id)).orderBy(desc3(documentVersions2.versionNumber));
+      const nextVersionNumber = versions.length > 0 ? versions[0].versionNumber + 1 : 1;
+      await db.insert(documentVersions2).values({
+        documentId: input.id,
+        versionNumber: nextVersionNumber,
+        title: doc.title,
+        description: doc.description,
+        fileUrl: doc.fileUrl,
+        fileSize: doc.fileSize,
+        category: doc.category,
+        accessLevel: doc.accessLevel,
+        updatedBy: ctx.user.id
+      });
+      await db.update(documents).set({
+        title: input.title,
+        description: input.description,
+        category: input.category,
+        accessLevel: input.accessLevel
+      }).where(eq5(documents.id, input.id));
+      return { success: true, versionNumber: nextVersionNumber };
+    }),
+    // Delete document (admin only)
+    delete: adminProcedure.input(z3.object({ id: z3.number() })).mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Databas inte tillg\xE4nglig" });
+      await db.delete(documents).where(eq5(documents.id, input.id));
       return { success: true };
     })
   }),
@@ -3164,15 +3696,15 @@ var appRouter = router({
     getSwishNumber: publicProcedure.query(async () => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const setting = await db.select().from(siteSettings).where(eq4(siteSettings.key, "swish_number")).limit(1);
+      const setting = await db.select().from(siteSettings).where(eq5(siteSettings.key, "swish_number")).limit(1);
       return setting[0]?.value || "123 XXX XXXX";
     }),
     // Submit payment confirmation (authenticated users)
-    submitConfirmation: protectedProcedure.input(z2.object({
-      amount: z2.string(),
-      paymentYear: z2.number(),
-      receiptBase64: z2.string().optional(),
-      notes: z2.string().optional()
+    submitConfirmation: protectedProcedure.input(z3.object({
+      amount: z3.string(),
+      paymentYear: z3.number(),
+      receiptBase64: z3.string().optional(),
+      notes: z3.string().optional()
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
@@ -3197,7 +3729,7 @@ var appRouter = router({
     myPayments: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      return await db.select().from(paymentConfirmations).where(eq4(paymentConfirmations.userId, ctx.user.id)).orderBy(desc3(paymentConfirmations.createdAt));
+      return await db.select().from(paymentConfirmations).where(eq5(paymentConfirmations.userId, ctx.user.id)).orderBy(desc3(paymentConfirmations.createdAt));
     }),
     // Admin: Get all payment confirmations
     listAll: adminProcedure.query(async () => {
@@ -3214,13 +3746,13 @@ var appRouter = router({
         verifiedAt: paymentConfirmations.verifiedAt,
         userName: users.name,
         userEmail: users.email
-      }).from(paymentConfirmations).leftJoin(users, eq4(paymentConfirmations.userId, users.id)).orderBy(desc3(paymentConfirmations.createdAt));
+      }).from(paymentConfirmations).leftJoin(users, eq5(paymentConfirmations.userId, users.id)).orderBy(desc3(paymentConfirmations.createdAt));
       return payments;
     }),
     // Admin: Verify payment
-    verify: adminProcedure.input(z2.object({
-      id: z2.number(),
-      status: z2.enum(["verified", "rejected"])
+    verify: adminProcedure.input(z3.object({
+      id: z3.number(),
+      status: z3.enum(["verified", "rejected"])
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
@@ -3228,27 +3760,117 @@ var appRouter = router({
         status: input.status,
         verifiedBy: ctx.user.id,
         verifiedAt: /* @__PURE__ */ new Date()
-      }).where(eq4(paymentConfirmations.id, input.id));
+      }).where(eq5(paymentConfirmations.id, input.id));
       if (input.status === "verified") {
-        const payment = await db.select().from(paymentConfirmations).where(eq4(paymentConfirmations.id, input.id)).limit(1);
+        const payment = await db.select().from(paymentConfirmations).where(eq5(paymentConfirmations.id, input.id)).limit(1);
         if (payment[0]) {
           await db.update(users).set({
             paymentStatus: "paid",
             paymentYear: payment[0].paymentYear
-          }).where(eq4(users.id, payment[0].userId));
+          }).where(eq5(users.id, payment[0].userId));
         }
       }
+      return { success: true };
+    })
+  }),
+  // Contact form
+  contact: router({
+    submit: publicProcedure.input(z3.object({
+      name: z3.string().min(1, "Namn kr\xE4vs"),
+      email: z3.string().email("Ogiltig e-postadress"),
+      subject: z3.string().optional(),
+      message: z3.string().min(1, "Meddelande kr\xE4vs")
+    })).mutation(async ({ input }) => {
+      const { notifyOwner: notifyOwner2 } = await Promise.resolve().then(() => (init_notification(), notification_exports));
+      const title = `Nytt kontaktformul\xE4r: ${input.subject || "Inget \xE4mne"}`;
+      const content = `
+Fr\xE5n: ${input.name} (${input.email})
+\xC4mne: ${input.subject || "Inget \xE4mne"}
+
+Meddelande:
+${input.message}
+`;
+      await notifyOwner2({ title, content });
+      return { success: true };
+    })
+  }),
+  // Banner management
+  banners: router({
+    list: publicProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      const now = /* @__PURE__ */ new Date();
+      const allBanners = await db.select().from(banners).orderBy(banners.order, banners.createdAt);
+      return allBanners.filter((banner) => {
+        if (!banner.active) return false;
+        if (banner.startDate && new Date(banner.startDate) > now) return false;
+        if (banner.endDate && new Date(banner.endDate) < now) return false;
+        return true;
+      });
+    }),
+    listAll: adminProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      return db.select().from(banners).orderBy(banners.order, desc3(banners.createdAt));
+    }),
+    create: adminProcedure.input(z3.object({
+      title: z3.string().min(1),
+      content: z3.string().min(1),
+      type: z3.enum(["info", "warning", "success", "event", "announcement"]),
+      position: z3.enum(["top", "hero", "sidebar"]),
+      linkUrl: z3.string().optional(),
+      linkText: z3.string().optional(),
+      startDate: z3.date().optional(),
+      endDate: z3.date().optional(),
+      order: z3.number().default(0)
+    })).mutation(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+      await db.insert(banners).values({
+        ...input,
+        createdBy: ctx.user.id,
+        active: 1
+      });
+      return { success: true };
+    }),
+    update: adminProcedure.input(z3.object({
+      id: z3.number(),
+      title: z3.string().min(1),
+      content: z3.string().min(1),
+      type: z3.enum(["info", "warning", "success", "event", "announcement"]),
+      position: z3.enum(["top", "hero", "sidebar"]),
+      linkUrl: z3.string().optional(),
+      linkText: z3.string().optional(),
+      startDate: z3.date().optional(),
+      endDate: z3.date().optional(),
+      order: z3.number()
+    })).mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+      const { id, ...data } = input;
+      await db.update(banners).set(data).where(eq5(banners.id, id));
+      return { success: true };
+    }),
+    delete: adminProcedure.input(z3.object({ id: z3.number() })).mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+      await db.delete(banners).where(eq5(banners.id, input.id));
+      return { success: true };
+    }),
+    toggleActive: adminProcedure.input(z3.object({ id: z3.number(), active: z3.number() })).mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+      await db.update(banners).set({ active: input.active }).where(eq5(banners.id, input.id));
       return { success: true };
     })
   })
 });
 
 // server/_core/context.ts
-init_sdk();
 async function createContext(opts) {
   let user = null;
   try {
-    user = await sdk.authenticateRequest(opts.req);
+    user = await authenticateRequest(opts.req);
   } catch (error) {
     user = null;
   }
@@ -3263,16 +3885,61 @@ async function createContext(opts) {
 import express from "express";
 import fs from "fs";
 import { nanoid } from "nanoid";
+import path2 from "path";
+import { createServer as createViteServer } from "vite";
+
+// vite.config.ts
+import { jsxLocPlugin } from "@builder.io/vite-plugin-jsx-loc";
+import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
 import path from "path";
+import { defineConfig } from "vite";
+import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
+var plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime()];
+var vite_config_default = defineConfig({
+  plugins,
+  resolve: {
+    alias: {
+      "@": path.resolve(import.meta.dirname, "client", "src"),
+      "@shared": path.resolve(import.meta.dirname, "shared"),
+      "@assets": path.resolve(import.meta.dirname, "attached_assets")
+    }
+  },
+  envDir: path.resolve(import.meta.dirname),
+  root: path.resolve(import.meta.dirname, "client"),
+  publicDir: path.resolve(import.meta.dirname, "client", "public"),
+  build: {
+    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    emptyOutDir: true
+  },
+  server: {
+    host: true,
+    allowedHosts: [
+      ".manuspre.computer",
+      ".manus.computer",
+      ".manus-asia.computer",
+      ".manuscomputer.ai",
+      ".manusvm.computer",
+      "localhost",
+      "127.0.0.1"
+    ],
+    fs: {
+      strict: true,
+      deny: ["**/.*"]
+    }
+  }
+});
+
+// server/_core/vite.ts
 async function setupVite(app, server) {
-  const { createServer: createViteServer } = await import("vite");
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
     allowedHosts: true
   };
   const vite = await createViteServer({
-    configFile: path.resolve(import.meta.dirname, "../..", "vite.config.ts"),
+    ...vite_config_default,
+    configFile: false,
     server: serverOptions,
     appType: "custom"
   });
@@ -3280,7 +3947,7 @@ async function setupVite(app, server) {
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
     try {
-      const clientTemplate = path.resolve(
+      const clientTemplate = path2.resolve(
         import.meta.dirname,
         "../..",
         "client",
@@ -3300,7 +3967,7 @@ async function setupVite(app, server) {
   });
 }
 function serveStatic(app) {
-  const distPath = process.env.NODE_ENV === "development" ? path.resolve(import.meta.dirname, "../..", "dist", "public") : path.resolve(import.meta.dirname, "public");
+  const distPath = process.env.NODE_ENV === "development" ? path2.resolve(import.meta.dirname, "../..", "dist", "public") : path2.resolve(import.meta.dirname, "public");
   if (!fs.existsSync(distPath)) {
     console.error(
       `Could not find the build directory: ${distPath}, make sure to build the client first`
@@ -3308,7 +3975,7 @@ function serveStatic(app) {
   }
   app.use(express.static(distPath));
   app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+    res.sendFile(path2.resolve(distPath, "index.html"));
   });
 }
 
@@ -3336,10 +4003,13 @@ async function startServer() {
   app.use(express2.json({ limit: "50mb" }));
   app.use(express2.urlencoded({ limit: "50mb", extended: true }));
   app.use(cookieParser());
-  app.use(passport3.initialize());
-  configureGoogleAuth();
+  app.use(passport2.initialize());
+  try {
+    configureGoogleAuth();
+  } catch (e) {
+  }
   registerOAuthRoutes(app);
-  app.use(createGoogleAuthRoutes());
+  registerPasswordAuthRoutes(app);
   app.get("/api/calendar/feed.ics", async (req, res) => {
     const { getAllEvents: getAllEvents2 } = await Promise.resolve().then(() => (init_eventDb(), eventDb_exports));
     const { generateICalFeed: generateICalFeed2 } = await Promise.resolve().then(() => (init_icalGenerator(), icalGenerator_exports));
