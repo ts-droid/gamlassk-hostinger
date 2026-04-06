@@ -1,0 +1,33 @@
+{
+  "name": "gamlassk-hostinger-runtime",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "start": "NODE_ENV=production node index.js"
+  },
+  "dependencies": {
+    "@trpc/server": "^11.6.0",
+    "axios": "^1.12.0",
+    "bcryptjs": "^3.0.3",
+    "cookie": "^1.0.2",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.2.2",
+    "drizzle-orm": "^0.44.5",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.2",
+    "ical-generator": "^10.0.0",
+    "jose": "6.1.0",
+    "mysql2": "^3.15.0",
+    "nanoid": "^5.1.5",
+    "papaparse": "^5.5.3",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
+    "resend": "^6.4.2",
+    "sharp": "^0.34.5",
+    "superjson": "^1.13.3",
+    "zod": "^4.1.12"
+  }
+}
