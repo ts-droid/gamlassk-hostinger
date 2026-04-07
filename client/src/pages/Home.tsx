@@ -65,7 +65,7 @@ function UpcomingEventsSection() {
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {upcomingEvents.map((event) => (
-            <Card key={event.id} className="hover:shadow-lg transition-shadow">
+            <Card key={event.id} className="flex h-full flex-col hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div>
@@ -77,15 +77,17 @@ function UpcomingEventsSection() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600 line-clamp-3 mb-4">
-                  {event.description}
-                </p>
-                {event.location && (
-                  <p className="text-sm text-gray-500 mb-4">
-                    📍 {event.location}
+              <CardContent className="flex flex-1 flex-col">
+                <div className="flex-1">
+                  <p className="mb-4 line-clamp-3 text-sm text-gray-600">
+                    {event.description}
                   </p>
-                )}
+                  {event.location && (
+                    <p className="mb-4 text-sm text-gray-500">
+                      📍 {event.location}
+                    </p>
+                  )}
+                </div>
                 <Link href="/calendar">
                   <Button className="w-full" size="sm">
                     Läs mer & anmäl dig
