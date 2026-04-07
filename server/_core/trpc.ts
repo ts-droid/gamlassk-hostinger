@@ -81,4 +81,6 @@ export const manageNewsProcedure = protectedProcedure.use(requirePermission('man
 export const manageMembersProcedure = protectedProcedure.use(requirePermission('manage_members'));
 export const manageRolesProcedure = protectedProcedure.use(requirePermission('manage_roles'));
 export const manageUsersProcedure = protectedProcedure.use(requirePermission('manage_users'));
+export const manageEventsProcedure = protectedProcedure.use(requirePermission('manage_events'));
+export const manageGalleryProcedure = protectedProcedure.use(requirePermission('manage_gallery'));
 export const manageCMSProcedure = protectedProcedure.use(requirePermission('manage_cms'));

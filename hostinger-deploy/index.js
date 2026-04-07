@@ -167,6 +167,7 @@ var init_schema = __esm({
       originalUrl: text("originalUrl"),
       // Original full-size image
       category: varchar("category", { length: 100 }),
+      tags: json("tags").$type(),
       uploadedBy: int("uploadedBy").references(() => users.id),
       createdAt: timestamp("createdAt").defaultNow().notNull()
     });
@@ -379,6 +380,17 @@ async function ensureSchemaCompatibility() {
       console.log(`[Database] Adding missing users column: ${columnName}`);
       await connection.query(`ALTER TABLE \`users\` ${statement}`);
     }
+    const [galleryColumnsRows] = await connection.query("SHOW COLUMNS FROM `gallery_photos`");
+    const existingGalleryColumns = new Set(
+      Array.isArray(galleryColumnsRows) ? galleryColumnsRows.map((row) => String(row.Field)) : []
+    );
+    for (const [columnName, statement] of GALLERY_SCHEMA_PATCHES) {
+      if (existingGalleryColumns.has(columnName)) {
+        continue;
+      }
+      console.log(`[Database] Adding missing gallery_photos column: ${columnName}`);
+      await connection.query(`ALTER TABLE \`gallery_photos\` ${statement}`);
+    }
     await connection.query(`
       CREATE TABLE IF NOT EXISTS \`password_reset_tokens\` (
         \`id\` int AUTO_INCREMENT NOT NULL,
@@ -390,6 +402,19 @@ async function ensureSchemaCompatibility() {
         PRIMARY KEY (\`id\`)
       )
     `);
+    for (const roleSeed of SYSTEM_ROLE_SEEDS) {
+      await connection.query(
+        `
+          INSERT INTO \`roles\` (\`name\`, \`description\`, \`permissions\`, \`isCustom\`)
+          VALUES (?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            \`description\` = VALUES(\`description\`),
+            \`permissions\` = VALUES(\`permissions\`),
+            \`isCustom\` = VALUES(\`isCustom\`)
+        `,
+        [roleSeed.name, roleSeed.description, roleSeed.permissions, roleSeed.isCustom]
+      );
+    }
     console.log("[Database] Schema compatibility check complete");
   } catch (error) {
     console.error("[Database] Schema compatibility check failed:", error);
@@ -704,7 +729,7 @@ async function deleteDocument(id) {
   if (!db) throw new Error("Database not available");
   await db.delete(documents).where(eq(documents.id, id));
 }
-var _db, USER_SCHEMA_PATCHES;
+var _db, USER_SCHEMA_PATCHES, GALLERY_SCHEMA_PATCHES, SYSTEM_ROLE_SEEDS;
 var init_db = __esm({
   "server/db.ts"() {
     "use strict";
@@ -723,6 +748,46 @@ var init_db = __esm({
       ["paymentStatus", "ADD COLUMN `paymentStatus` enum('paid','unpaid','exempt') DEFAULT 'unpaid'"],
       ["paymentYear", "ADD COLUMN `paymentYear` int"],
       ["showInDirectory", "ADD COLUMN `showInDirectory` int NOT NULL DEFAULT 1"]
+    ];
+    GALLERY_SCHEMA_PATCHES = [
+      ["tags", "ADD COLUMN `tags` json"]
+    ];
+    SYSTEM_ROLE_SEEDS = [
+      {
+        name: "huvudadmin",
+        description: "Huvudadministrat\xF6r med full \xE5tkomst",
+        permissions: JSON.stringify([
+          "manage_all",
+          "manage_roles",
+          "manage_users",
+          "manage_news",
+          "manage_members",
+          "view_members",
+          "manage_events",
+          "manage_gallery",
+          "manage_cms"
+        ]),
+        isCustom: 0
+      },
+      {
+        name: "nyhetsadmin",
+        description: "Administrat\xF6r f\xF6r nyheter, evenemang och galleri",
+        permissions: JSON.stringify([
+          "manage_news",
+          "manage_events",
+          "manage_gallery"
+        ]),
+        isCustom: 0
+      },
+      {
+        name: "medlemsadmin",
+        description: "Administrat\xF6r f\xF6r medlemshantering",
+        permissions: JSON.stringify([
+          "manage_members",
+          "view_members"
+        ]),
+        isCustom: 0
+      }
     ];
   }
 });
@@ -2162,6 +2227,8 @@ var manageNewsProcedure = protectedProcedure.use(requirePermission("manage_news"
 var manageMembersProcedure = protectedProcedure.use(requirePermission("manage_members"));
 var manageRolesProcedure = protectedProcedure.use(requirePermission("manage_roles"));
 var manageUsersProcedure = protectedProcedure.use(requirePermission("manage_users"));
+var manageEventsProcedure = protectedProcedure.use(requirePermission("manage_events"));
+var manageGalleryProcedure = protectedProcedure.use(requirePermission("manage_gallery"));
 var manageCMSProcedure = protectedProcedure.use(requirePermission("manage_cms"));
 
 // server/_core/systemRouter.ts
@@ -2195,6 +2262,22 @@ import { z as z2 } from "zod";
 import { desc as desc3, eq as eq4, isNotNull, gte, sql as sql3 } from "drizzle-orm";
 import crypto3 from "crypto";
 function normalizePermissions2(value) {
+  if (Array.isArray(value)) {
+    return value.filter((item) => typeof item === "string");
+  }
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item) => typeof item === "string");
+      }
+    } catch {
+      return value.split(",").map((item) => item.trim()).filter(Boolean);
+    }
+  }
+  return [];
+}
+function normalizeTags(value) {
   if (Array.isArray(value)) {
     return value.filter((item) => typeof item === "string");
   }
@@ -2542,28 +2625,33 @@ var appRouter = router({
     list: publicProcedure.query(async () => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      return await db.select().from(galleryPhotos).orderBy(desc3(galleryPhotos.createdAt));
+      const photos = await db.select().from(galleryPhotos).orderBy(desc3(galleryPhotos.createdAt));
+      return photos.map((photo) => ({
+        ...photo,
+        tags: normalizeTags(photo.tags)
+      }));
     }),
     // Get photos by category (public)
     byCategory: publicProcedure.input(z2.object({ category: z2.string() })).query(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      return await db.select().from(galleryPhotos).where(eq4(galleryPhotos.category, input.category)).orderBy(desc3(galleryPhotos.createdAt));
+      const photos = await db.select().from(galleryPhotos).where(eq4(galleryPhotos.category, input.category)).orderBy(desc3(galleryPhotos.createdAt));
+      return photos.map((photo) => ({
+        ...photo,
+        tags: normalizeTags(photo.tags)
+      }));
     }),
-    // Upload photo with automatic compression (admin only)
-    upload: protectedProcedure.input(z2.object({
+    // Upload photo with automatic compression
+    upload: manageGalleryProcedure.input(z2.object({
       title: z2.string().min(1),
       description: z2.string().optional(),
       category: z2.string().optional(),
+      tags: z2.array(z2.string()).optional(),
       imageBase64: z2.string()
       // Base64 encoded image
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const user = await db.select().from(users).where(eq4(users.id, ctx.user.id)).limit(1);
-      if (!user[0] || user[0].role !== "admin") {
-        throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
-      }
       const imageBuffer = Buffer.from(input.imageBase64, "base64");
       const { processAndUploadImage: processAndUploadImage2 } = await Promise.resolve().then(() => (init_imageProcessor(), imageProcessor_exports));
       const processedImages = await processAndUploadImage2(imageBuffer, input.title, "gallery");
@@ -2576,54 +2664,46 @@ var appRouter = router({
         mediumUrl: processedImages.medium.url,
         originalUrl: processedImages.original.url,
         category: input.category,
+        tags: input.tags || [],
         uploadedBy: ctx.user.id
       });
       return { success: true, images: processedImages };
     }),
-    // Create photo (admin only) - Legacy method
-    create: protectedProcedure.input(z2.object({
+    // Create photo - Legacy method
+    create: manageGalleryProcedure.input(z2.object({
       title: z2.string().min(1),
       description: z2.string().optional(),
       imageUrl: z2.string().url(),
-      category: z2.string().optional()
+      category: z2.string().optional(),
+      tags: z2.array(z2.string()).optional()
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const user = await db.select().from(users).where(eq4(users.id, ctx.user.id)).limit(1);
-      if (!user[0] || user[0].role !== "admin") {
-        throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
-      }
       await db.insert(galleryPhotos).values({
         ...input,
+        tags: input.tags || [],
         uploadedBy: ctx.user.id
       });
       return { success: true };
     }),
-    // Update photo (admin only)
-    update: protectedProcedure.input(z2.object({
+    // Update photo
+    update: manageGalleryProcedure.input(z2.object({
       id: z2.number(),
       title: z2.string().optional(),
       description: z2.string().optional(),
-      category: z2.string().optional()
+      category: z2.string().optional(),
+      tags: z2.array(z2.string()).optional()
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const user = await db.select().from(users).where(eq4(users.id, ctx.user.id)).limit(1);
-      if (!user[0] || user[0].role !== "admin") {
-        throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
-      }
       const { id, ...updateData } = input;
       await db.update(galleryPhotos).set(updateData).where(eq4(galleryPhotos.id, id));
       return { success: true };
     }),
-    // Delete photo (admin only)
-    delete: protectedProcedure.input(z2.object({ id: z2.number() })).mutation(async ({ ctx, input }) => {
+    // Delete photo
+    delete: manageGalleryProcedure.input(z2.object({ id: z2.number() })).mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const user = await db.select().from(users).where(eq4(users.id, ctx.user.id)).limit(1);
-      if (!user[0] || user[0].role !== "admin") {
-        throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
-      }
       await db.delete(galleryPhotos).where(eq4(galleryPhotos.id, input.id));
       return { success: true };
     })
@@ -2635,18 +2715,14 @@ var appRouter = router({
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       return await db.select().from(events).where(gte(events.eventDate, /* @__PURE__ */ new Date())).orderBy(events.eventDate);
     }),
-    // Get all events (admin)
-    listAll: protectedProcedure.query(async ({ ctx }) => {
+    // Get all events for editors/admins
+    listAll: manageEventsProcedure.query(async () => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const user = await db.select().from(users).where(eq4(users.id, ctx.user.id)).limit(1);
-      if (!user[0] || user[0].role !== "admin") {
-        throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
-      }
       return await db.select().from(events).orderBy(desc3(events.eventDate));
     }),
-    // Create event (admin only)
-    create: protectedProcedure.input(z2.object({
+    // Create event
+    create: manageEventsProcedure.input(z2.object({
       title: z2.string().min(1),
       description: z2.string().optional(),
       eventDate: z2.date(),
@@ -2660,10 +2736,6 @@ var appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const user = await db.select().from(users).where(eq4(users.id, ctx.user.id)).limit(1);
-      if (!user[0] || user[0].role !== "admin") {
-        throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
-      }
       await db.insert(events).values({
         ...input,
         allowWaitlist: input.allowWaitlist ? 1 : 0,
@@ -2671,8 +2743,8 @@ var appRouter = router({
       });
       return { success: true };
     }),
-    // Update event (admin only)
-    update: protectedProcedure.input(z2.object({
+    // Update event
+    update: manageEventsProcedure.input(z2.object({
       id: z2.number(),
       title: z2.string().optional(),
       description: z2.string().optional(),
@@ -2684,13 +2756,9 @@ var appRouter = router({
       registrationDeadline: z2.date().optional(),
       status: z2.enum(["draft", "published", "cancelled", "completed"]).optional(),
       allowWaitlist: z2.boolean().optional()
-    })).mutation(async ({ ctx, input }) => {
+    })).mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const user = await db.select().from(users).where(eq4(users.id, ctx.user.id)).limit(1);
-      if (!user[0] || user[0].role !== "admin") {
-        throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
-      }
       const { id, allowWaitlist, ...updateData } = input;
       await db.update(events).set({
         ...updateData,
@@ -2698,25 +2766,17 @@ var appRouter = router({
       }).where(eq4(events.id, id));
       return { success: true };
     }),
-    // Delete event (admin only)
-    delete: protectedProcedure.input(z2.object({ id: z2.number() })).mutation(async ({ ctx, input }) => {
+    // Delete event
+    delete: manageEventsProcedure.input(z2.object({ id: z2.number() })).mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const user = await db.select().from(users).where(eq4(users.id, ctx.user.id)).limit(1);
-      if (!user[0] || user[0].role !== "admin") {
-        throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
-      }
       await db.delete(events).where(eq4(events.id, input.id));
       return { success: true };
     }),
-    // Get event with registrations (admin only)
-    getWithRegistrations: protectedProcedure.input(z2.object({ id: z2.number() })).query(async ({ ctx, input }) => {
+    // Get event with registrations
+    getWithRegistrations: manageEventsProcedure.input(z2.object({ id: z2.number() })).query(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
-      const user = await db.select().from(users).where(eq4(users.id, ctx.user.id)).limit(1);
-      if (!user[0] || user[0].role !== "admin") {
-        throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
-      }
       return await getEventWithRegistrations(input.id);
     }),
     // Register for event (authenticated users)
@@ -2792,13 +2852,13 @@ var appRouter = router({
       return await db.select().from(pageContent).where(eq4(pageContent.page, input.page)).orderBy(pageContent.order);
     }),
     // Get all page content (admin)
-    getAllContent: adminProcedure.query(async () => {
+    getAllContent: manageCMSProcedure.query(async () => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       return await db.select().from(pageContent).orderBy(pageContent.page, pageContent.order);
     }),
     // Update page content (admin)
-    updateContent: adminProcedure.input(z2.object({
+    updateContent: manageCMSProcedure.input(z2.object({
       id: z2.number(),
       content: z2.string().optional(),
       order: z2.number().optional(),
@@ -2811,7 +2871,7 @@ var appRouter = router({
       return { success: true };
     }),
     // Create new content section (admin)
-    createContent: adminProcedure.input(z2.object({
+    createContent: manageCMSProcedure.input(z2.object({
       page: z2.string(),
       sectionKey: z2.string(),
       type: z2.string(),
@@ -2826,7 +2886,7 @@ var appRouter = router({
       });
       return { success: true };
     }),
-    updatePageContent: protectedProcedure.input(z2.object({ id: z2.number(), content: z2.string().nullable() })).mutation(async ({ ctx, input }) => {
+    updatePageContent: manageCMSProcedure.input(z2.object({ id: z2.number(), content: z2.string().nullable() })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       const [current] = await db.select().from(pageContent).where(eq4(pageContent.id, input.id)).limit(1);
@@ -2840,7 +2900,7 @@ var appRouter = router({
       await db.update(pageContent).set({ content: input.content }).where(eq4(pageContent.id, input.id));
       return { success: true };
     }),
-    getContentHistory: protectedProcedure.input(z2.object({ contentId: z2.number() })).query(async ({ input }) => {
+    getContentHistory: manageCMSProcedure.input(z2.object({ contentId: z2.number() })).query(async ({ input }) => {
       const db = await getDb();
       if (!db) return [];
       const history = await db.select({
@@ -2852,7 +2912,7 @@ var appRouter = router({
       }).from(contentHistory).leftJoin(users, eq4(contentHistory.updatedBy, users.id)).where(eq4(contentHistory.contentId, input.contentId)).orderBy(desc3(contentHistory.createdAt)).limit(20);
       return history;
     }),
-    restoreContentVersion: protectedProcedure.input(z2.object({ contentId: z2.number(), historyId: z2.number() })).mutation(async ({ ctx, input }) => {
+    restoreContentVersion: manageCMSProcedure.input(z2.object({ contentId: z2.number(), historyId: z2.number() })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       const [history] = await db.select().from(contentHistory).where(eq4(contentHistory.id, input.historyId)).limit(1);
@@ -2869,7 +2929,7 @@ var appRouter = router({
       return { success: true };
     }),
     // Delete content section (admin)
-    deleteContent: adminProcedure.input(z2.object({ id: z2.number() })).mutation(async ({ input }) => {
+    deleteContent: manageCMSProcedure.input(z2.object({ id: z2.number() })).mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       await db.delete(pageContent).where(eq4(pageContent.id, input.id));
@@ -2882,7 +2942,7 @@ var appRouter = router({
       return await db.select().from(siteSettings);
     }),
     // Update site setting (admin)
-    updateSetting: adminProcedure.input(z2.object({
+    updateSetting: manageCMSProcedure.input(z2.object({
       key: z2.string(),
       value: z2.string(),
       type: z2.string().optional()
@@ -2908,12 +2968,12 @@ var appRouter = router({
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       return await db.select().from(boardMembers).where(eq4(boardMembers.active, 1)).orderBy(boardMembers.order);
     }),
-    getAllBoardMembers: adminProcedure.query(async () => {
+    getAllBoardMembers: manageCMSProcedure.query(async () => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       return await db.select().from(boardMembers).orderBy(boardMembers.order);
     }),
-    createBoardMember: adminProcedure.input(z2.object({
+    createBoardMember: manageCMSProcedure.input(z2.object({
       name: z2.string(),
       role: z2.string(),
       phone: z2.string().optional(),
@@ -2926,7 +2986,7 @@ var appRouter = router({
       await db.insert(boardMembers).values(input);
       return { success: true };
     }),
-    updateBoardMember: adminProcedure.input(z2.object({
+    updateBoardMember: manageCMSProcedure.input(z2.object({
       id: z2.number(),
       name: z2.string().optional(),
       role: z2.string().optional(),
@@ -2942,7 +3002,7 @@ var appRouter = router({
       await db.update(boardMembers).set(updateData).where(eq4(boardMembers.id, id));
       return { success: true };
     }),
-    deleteBoardMember: adminProcedure.input(z2.object({ id: z2.number() })).mutation(async ({ input }) => {
+    deleteBoardMember: manageCMSProcedure.input(z2.object({ id: z2.number() })).mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       await db.delete(boardMembers).where(eq4(boardMembers.id, input.id));

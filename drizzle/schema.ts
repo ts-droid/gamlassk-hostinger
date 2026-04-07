@@ -102,6 +102,7 @@ export const galleryPhotos = mysqlTable("gallery_photos", {
   mediumUrl: text("mediumUrl"), // 800px width medium size
   originalUrl: text("originalUrl"), // Original full-size image
   category: varchar("category", { length: 100 }),
+  tags: json("tags").$type<string[]>(),
   uploadedBy: int("uploadedBy").references(() => users.id),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });

@@ -1,14 +1,41 @@
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Image as ImageIcon, Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
+
+function normalizeTags(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string");
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function tagsToInput(value: unknown) {
+  return normalizeTags(value).join(", ");
+}
 
 export default function GalleryManagement() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -17,16 +44,23 @@ export default function GalleryManagement() {
     title: "",
     description: "",
     imageUrl: "",
-    category: "",
+    album: "",
+    tagsInput: "",
   });
 
   const { data: photosData, refetch } = trpc.gallery.list.useQuery();
+  const albums = Array.from(
+    new Set((photosData || []).map((photo) => photo.category).filter(Boolean))
+  ) as string[];
+  const knownTags = Array.from(
+    new Set((photosData || []).flatMap((photo) => normalizeTags(photo.tags)))
+  );
 
   const createMutation = trpc.gallery.create.useMutation({
     onSuccess: () => {
       toast.success("Bild uppladdad!");
       setIsCreateOpen(false);
-      setFormData({ title: "", description: "", imageUrl: "", category: "" });
+      setFormData({ title: "", description: "", imageUrl: "", album: "", tagsInput: "" });
       refetch();
     },
     onError: (error) => {
@@ -38,7 +72,7 @@ export default function GalleryManagement() {
     onSuccess: () => {
       toast.success("Bild uppdaterad!");
       setEditingPhoto(null);
-      setFormData({ title: "", description: "", imageUrl: "", category: "" });
+      setFormData({ title: "", description: "", imageUrl: "", album: "", tagsInput: "" });
       refetch();
     },
     onError: (error) => {
@@ -61,16 +95,25 @@ export default function GalleryManagement() {
       toast.error("Vänligen ladda upp en bild");
       return;
     }
-    createMutation.mutate(formData);
+
+    createMutation.mutate({
+      title: formData.title,
+      description: formData.description || undefined,
+      imageUrl: formData.imageUrl,
+      category: formData.album || undefined,
+      tags: normalizeTags(formData.tagsInput),
+    });
   };
 
   const handleUpdate = () => {
     if (!editingPhoto) return;
+
     updateMutation.mutate({
       id: editingPhoto.id,
       title: formData.title,
-      description: formData.description,
-      category: formData.category,
+      description: formData.description || undefined,
+      category: formData.album || undefined,
+      tags: normalizeTags(formData.tagsInput),
     });
   };
 
@@ -86,7 +129,8 @@ export default function GalleryManagement() {
       title: photo.title,
       description: photo.description || "",
       imageUrl: photo.imageUrl,
-      category: photo.category || "",
+      album: photo.category || "",
+      tagsInput: tagsToInput(photo.tags),
     });
   };
 
@@ -95,7 +139,7 @@ export default function GalleryManagement() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Bildgalleri</h2>
-          <p className="text-gray-600">Hantera bilder i galleriet</p>
+          <p className="text-gray-600">Hantera bilder, album och taggar i galleriet</p>
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
@@ -108,7 +152,7 @@ export default function GalleryManagement() {
             <DialogHeader>
               <DialogTitle>Ladda upp ny bild</DialogTitle>
               <DialogDescription>
-                Ladda upp en bild till galleriet
+                Ladda upp en bild, placera den i ett album och märk upp den med taggar.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -119,7 +163,7 @@ export default function GalleryManagement() {
                   onChange={(url: string) => setFormData({ ...formData, imageUrl: url })}
                 />
                 {formData.imageUrl && (
-                  <img src={formData.imageUrl} alt="Preview" className="mt-2 w-full h-48 object-cover rounded" />
+                  <img src={formData.imageUrl} alt="Preview" className="mt-2 h-48 w-full rounded object-cover" />
                 )}
               </div>
               <div>
@@ -141,13 +185,35 @@ export default function GalleryManagement() {
                 />
               </div>
               <div>
-                <Label htmlFor="category">Kategori</Label>
+                <Label htmlFor="album">Album</Label>
                 <Input
-                  id="category"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  placeholder="t.ex. Evenemang, Historiskt, Medlemmar"
+                  id="album"
+                  list="gallery-albums"
+                  value={formData.album}
+                  onChange={(e) => setFormData({ ...formData, album: e.target.value })}
+                  placeholder="t.ex. Vårfest 2024"
                 />
+                <datalist id="gallery-albums">
+                  {albums.map((album) => (
+                    <option key={album} value={album} />
+                  ))}
+                </datalist>
+              </div>
+              <div>
+                <Label htmlFor="tags">Taggar</Label>
+                <Input
+                  id="tags"
+                  list="gallery-tags"
+                  value={formData.tagsInput}
+                  onChange={(e) => setFormData({ ...formData, tagsInput: e.target.value })}
+                  placeholder="t.ex. 2024, Södertälje, spelare"
+                />
+                <datalist id="gallery-tags">
+                  {knownTags.map((tag) => (
+                    <option key={tag} value={tag} />
+                  ))}
+                </datalist>
+                <p className="mt-1 text-xs text-gray-500">Separera flera taggar med komma.</p>
               </div>
             </div>
             <DialogFooter>
@@ -162,14 +228,14 @@ export default function GalleryManagement() {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {photosData?.map((photo) => (
           <Card key={photo.id}>
             <CardHeader className="p-0">
-              <img src={photo.imageUrl} alt={photo.title} className="w-full h-48 object-cover" />
+              <img src={photo.imageUrl} alt={photo.title} className="h-48 w-full object-cover" />
             </CardHeader>
             <CardContent className="p-4">
-              <div className="flex items-start justify-between mb-2">
+              <div className="mb-2 flex items-start justify-between">
                 <CardTitle className="text-lg">{photo.title}</CardTitle>
                 <div className="flex gap-1">
                   <Dialog open={editingPhoto?.id === photo.id} onOpenChange={(open) => !open && setEditingPhoto(null)}>
@@ -182,12 +248,12 @@ export default function GalleryManagement() {
                       <DialogHeader>
                         <DialogTitle>Redigera bild</DialogTitle>
                         <DialogDescription>
-                          Uppdatera bildinformation
+                          Uppdatera titel, album och taggar för bilden.
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4">
                         <div>
-                          <img src={formData.imageUrl} alt="Preview" className="w-full h-48 object-cover rounded" />
+                          <img src={formData.imageUrl} alt="Preview" className="h-48 w-full rounded object-cover" />
                         </div>
                         <div>
                           <Label htmlFor="edit-title">Titel *</Label>
@@ -206,11 +272,21 @@ export default function GalleryManagement() {
                           />
                         </div>
                         <div>
-                          <Label htmlFor="edit-category">Kategori</Label>
+                          <Label htmlFor="edit-album">Album</Label>
                           <Input
-                            id="edit-category"
-                            value={formData.category}
-                            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                            id="edit-album"
+                            list="gallery-albums"
+                            value={formData.album}
+                            onChange={(e) => setFormData({ ...formData, album: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="edit-tags">Taggar</Label>
+                          <Input
+                            id="edit-tags"
+                            list="gallery-tags"
+                            value={formData.tagsInput}
+                            onChange={(e) => setFormData({ ...formData, tagsInput: e.target.value })}
                           />
                         </div>
                       </div>
@@ -233,15 +309,24 @@ export default function GalleryManagement() {
                   </Button>
                 </div>
               </div>
-              {photo.description && (
-                <p className="text-sm text-gray-600 mb-2 line-clamp-2">{photo.description}</p>
-              )}
-              {photo.category && (
-                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                  {photo.category}
+              {photo.description ? (
+                <p className="mb-2 line-clamp-2 text-sm text-gray-600">{photo.description}</p>
+              ) : null}
+              {photo.category ? (
+                <span className="rounded bg-blue-100 px-2 py-1 text-xs text-blue-800">
+                  Album: {photo.category}
                 </span>
-              )}
-              <p className="text-xs text-gray-500 mt-2">
+              ) : null}
+              {normalizeTags(photo.tags).length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {normalizeTags(photo.tags).map((tag) => (
+                    <span key={tag} className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-700">
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              <p className="mt-2 text-xs text-gray-500">
                 {new Date(photo.createdAt).toLocaleDateString("sv-SE")}
               </p>
             </CardContent>

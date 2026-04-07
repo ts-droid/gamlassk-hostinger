@@ -81,9 +81,9 @@ export default function Admin() {
             {hasPermission('manage_news') && <TabsTrigger value="news" className="flex-shrink-0">Nyheter</TabsTrigger>}
             {hasPermission('manage_members') && <TabsTrigger value="memberships" className="flex-shrink-0">Medlemsansökningar</TabsTrigger>}
             {hasPermission('view_members') && <TabsTrigger value="members" className="flex-shrink-0">Medlemsregister</TabsTrigger>}
-            {hasPermission('manage_news') && <TabsTrigger value="gallery" className="flex-shrink-0">Bildgalleri</TabsTrigger>}
-            {hasPermission('manage_news') && <TabsTrigger value="events" className="flex-shrink-0">Evenemang</TabsTrigger>}
-            {hasPermission('manage_all') && <TabsTrigger value="cms" className="flex-shrink-0">CMS</TabsTrigger>}
+            {hasPermission('manage_gallery') && <TabsTrigger value="gallery" className="flex-shrink-0">Bildgalleri</TabsTrigger>}
+            {hasPermission('manage_events') && <TabsTrigger value="events" className="flex-shrink-0">Evenemang</TabsTrigger>}
+            {hasPermission('manage_cms') && <TabsTrigger value="cms" className="flex-shrink-0">CMS</TabsTrigger>}
             {hasPermission('manage_all') && <TabsTrigger value="documents" className="flex-shrink-0">Dokument</TabsTrigger>}
             {hasPermission('manage_all') && <TabsTrigger value="payments" className="flex-shrink-0">Betalningar</TabsTrigger>}
             {hasPermission('manage_roles') && <TabsTrigger value="roles" className="flex-shrink-0">Roller</TabsTrigger>}

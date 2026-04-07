@@ -42,6 +42,48 @@ const USER_SCHEMA_PATCHES = [
   ["showInDirectory", "ADD COLUMN `showInDirectory` int NOT NULL DEFAULT 1"],
 ] as const;
 
+const GALLERY_SCHEMA_PATCHES = [
+  ["tags", "ADD COLUMN `tags` json"],
+] as const;
+
+const SYSTEM_ROLE_SEEDS = [
+  {
+    name: "huvudadmin",
+    description: "Huvudadministratör med full åtkomst",
+    permissions: JSON.stringify([
+      "manage_all",
+      "manage_roles",
+      "manage_users",
+      "manage_news",
+      "manage_members",
+      "view_members",
+      "manage_events",
+      "manage_gallery",
+      "manage_cms",
+    ]),
+    isCustom: 0,
+  },
+  {
+    name: "nyhetsadmin",
+    description: "Administratör för nyheter, evenemang och galleri",
+    permissions: JSON.stringify([
+      "manage_news",
+      "manage_events",
+      "manage_gallery",
+    ]),
+    isCustom: 0,
+  },
+  {
+    name: "medlemsadmin",
+    description: "Administratör för medlemshantering",
+    permissions: JSON.stringify([
+      "manage_members",
+      "view_members",
+    ]),
+    isCustom: 0,
+  },
+] as const;
+
 function parseDatabaseUrl(databaseUrl: string) {
   const parsed = new URL(databaseUrl);
   return {
@@ -80,6 +122,22 @@ export async function ensureSchemaCompatibility() {
       await connection.query(`ALTER TABLE \`users\` ${statement}`);
     }
 
+    const [galleryColumnsRows] = await connection.query("SHOW COLUMNS FROM `gallery_photos`");
+    const existingGalleryColumns = new Set(
+      Array.isArray(galleryColumnsRows)
+        ? galleryColumnsRows.map((row: any) => String(row.Field))
+        : []
+    );
+
+    for (const [columnName, statement] of GALLERY_SCHEMA_PATCHES) {
+      if (existingGalleryColumns.has(columnName)) {
+        continue;
+      }
+
+      console.log(`[Database] Adding missing gallery_photos column: ${columnName}`);
+      await connection.query(`ALTER TABLE \`gallery_photos\` ${statement}`);
+    }
+
     await connection.query(`
       CREATE TABLE IF NOT EXISTS \`password_reset_tokens\` (
         \`id\` int AUTO_INCREMENT NOT NULL,
@@ -91,6 +149,20 @@ export async function ensureSchemaCompatibility() {
         PRIMARY KEY (\`id\`)
       )
     `);
+
+    for (const roleSeed of SYSTEM_ROLE_SEEDS) {
+      await connection.query(
+        `
+          INSERT INTO \`roles\` (\`name\`, \`description\`, \`permissions\`, \`isCustom\`)
+          VALUES (?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            \`description\` = VALUES(\`description\`),
+            \`permissions\` = VALUES(\`permissions\`),
+            \`isCustom\` = VALUES(\`isCustom\`)
+        `,
+        [roleSeed.name, roleSeed.description, roleSeed.permissions, roleSeed.isCustom]
+      );
+    }
 
     console.log("[Database] Schema compatibility check complete");
   } catch (error) {

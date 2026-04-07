@@ -1,129 +1,190 @@
 import { trpc } from "@/lib/trpc";
-import { useState, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Image as ImageIcon, Upload, Loader2, Trash2 } from "lucide-react";
+import { Image as ImageIcon, Loader2, Tag, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { PageHero, SiteFooter, SiteHeader } from "@/components/SiteChrome";
 
+function normalizePermissions(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string");
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item): item is string => typeof item === "string");
+      }
+    } catch {
+      return value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+  }
+
+  return [];
+}
+
+function normalizeTags(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string");
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
 export default function Gallery() {
   const { user, isAuthenticated } = useAuth();
   const [lightboxIndex, setLightboxIndex] = useState(-1);
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [albumFilter, setAlbumFilter] = useState<string>("all");
+  const [tagFilter, setTagFilter] = useState<string>("all");
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: photos, refetch } = trpc.gallery.list.useQuery();
+  const { data: rolesData } = trpc.roles.list.useQuery(undefined, {
+    enabled: isAuthenticated && user?.role === "admin",
+  });
+
+  const currentRole = rolesData?.find((role) => role.id === user?.roleId);
+  const rolePermissions = normalizePermissions(currentRole?.permissions);
+  const canManageGallery = Boolean(
+    user?.role === "admin" &&
+      (rolePermissions.includes("manage_all") || rolePermissions.includes("manage_gallery"))
+  );
+
   const uploadMutation = trpc.gallery.upload.useMutation({
     onSuccess: () => {
-      toast.success('Bild uppladdad!');
+      toast.success("Bild uppladdad!");
       setUploadDialogOpen(false);
       refetch();
       setUploading(false);
     },
     onError: (error) => {
-      toast.error(error.message || 'Kunde inte ladda upp bild');
+      toast.error(error.message || "Kunde inte ladda upp bild");
       setUploading(false);
     },
   });
 
   const deleteMutation = trpc.gallery.delete.useMutation({
     onSuccess: () => {
-      toast.success('Bild borttagen');
+      toast.success("Bild borttagen");
       refetch();
     },
     onError: (error) => {
-      toast.error(error.message || 'Kunde inte ta bort bild');
+      toast.error(error.message || "Kunde inte ta bort bild");
     },
   });
 
-  const categories = Array.from(new Set(photos?.map(p => p.category).filter(Boolean))) as string[];
-  
-  const filteredPhotos = categoryFilter === "all" 
-    ? photos 
-    : photos?.filter(p => p.category === categoryFilter);
+  const albums = useMemo(
+    () => Array.from(new Set((photos || []).map((photo) => photo.category).filter(Boolean))) as string[],
+    [photos]
+  );
+  const tags = useMemo(
+    () => Array.from(new Set((photos || []).flatMap((photo) => normalizeTags(photo.tags)))).sort(),
+    [photos]
+  );
 
-  // Prepare lightbox slides
-  const lightboxSlides = filteredPhotos?.map(photo => ({
+  const filteredPhotos = (photos || []).filter((photo) => {
+    const matchesAlbum = albumFilter === "all" || photo.category === albumFilter;
+    const matchesTag = tagFilter === "all" || normalizeTags(photo.tags).includes(tagFilter);
+    return matchesAlbum && matchesTag;
+  });
+
+  const lightboxSlides = filteredPhotos.map((photo) => ({
     src: photo.originalUrl || photo.mediumUrl || photo.imageUrl,
     alt: photo.title,
     title: photo.title,
     description: photo.description,
-  })) || [];
+  }));
 
   const handleFileSelect = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const file = fileInputRef.current?.files?.[0];
-    
+
     if (!file) {
-      toast.error('Välj en bild att ladda upp');
+      toast.error("Välj en bild att ladda upp");
       return;
     }
 
-    // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
-      toast.error('Bilden är för stor (max 10MB)');
+      toast.error("Bilden är för stor (max 10MB)");
       return;
     }
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('Endast bildfiler är tillåtna');
+    if (!file.type.startsWith("image/")) {
+      toast.error("Endast bildfiler är tillåtna");
       return;
     }
 
     setUploading(true);
 
-    // Convert to base64
     const reader = new FileReader();
     reader.onload = async () => {
-      const base64 = reader.result?.toString().split(',')[1];
+      const base64 = reader.result?.toString().split(",")[1];
       if (!base64) {
-        toast.error('Kunde inte läsa bilden');
+        toast.error("Kunde inte läsa bilden");
         setUploading(false);
         return;
       }
 
       uploadMutation.mutate({
-        title: formData.get('title') as string,
-        description: formData.get('description') as string || undefined,
-        category: formData.get('category') as string || undefined,
+        title: formData.get("title") as string,
+        description: (formData.get("description") as string) || undefined,
+        category: (formData.get("album") as string) || undefined,
+        tags: normalizeTags((formData.get("tags") as string) || ""),
         imageBase64: base64,
       });
     };
+
     reader.onerror = () => {
-      toast.error('Kunde inte läsa bilden');
+      toast.error("Kunde inte läsa bilden");
       setUploading(false);
     };
     reader.readAsDataURL(file);
   };
 
   const handleDelete = (id: number) => {
-    if (confirm('Är du säker på att du vill ta bort denna bild?')) {
+    if (confirm("Är du säker på att du vill ta bort denna bild?")) {
       deleteMutation.mutate({ id });
     }
   };
-
-  const isAdmin = user?.role === 'admin';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <SiteHeader currentPath="/gallery" />
       <PageHero
         title="Bildgalleri"
-        description="Bilder från föreningens evenemang och aktiviteter."
+        description="Bilder från föreningens evenemang och aktiviteter. Filtrera på album eller taggar för att hitta rätt snabbare."
         actions={
-          isAdmin ? (
+          canManageGallery ? (
             <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="secondary" size="lg">
@@ -135,7 +196,7 @@ export default function Gallery() {
                 <DialogHeader>
                   <DialogTitle>Ladda upp bild</DialogTitle>
                   <DialogDescription>
-                    Bilden kommer automatiskt att komprimeras och optimeras
+                    Placera bilden i ett album och märk upp den med taggar för årtal, platser och personer.
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleFileSelect} className="space-y-4">
@@ -150,7 +211,7 @@ export default function Gallery() {
                       required
                       disabled={uploading}
                     />
-                    <p className="text-sm text-gray-500 mt-1">Max 10MB</p>
+                    <p className="mt-1 text-sm text-gray-500">Max 10MB</p>
                   </div>
                   <div>
                     <Label htmlFor="title">Titel *</Label>
@@ -173,13 +234,35 @@ export default function Gallery() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="category">Kategori</Label>
+                    <Label htmlFor="album">Album</Label>
                     <Input
-                      id="category"
-                      name="category"
+                      id="album"
+                      name="album"
+                      list="gallery-albums-public"
                       disabled={uploading}
-                      placeholder="T.ex. Evenemang, Matcher, Historiskt"
+                      placeholder="T.ex. Historiska bilder"
                     />
+                    <datalist id="gallery-albums-public">
+                      {albums.map((album) => (
+                        <option key={album} value={album} />
+                      ))}
+                    </datalist>
+                  </div>
+                  <div>
+                    <Label htmlFor="tags">Taggar</Label>
+                    <Input
+                      id="tags"
+                      name="tags"
+                      list="gallery-tags-public"
+                      disabled={uploading}
+                      placeholder="T.ex. 1998, Södertälje, Anders"
+                    />
+                    <datalist id="gallery-tags-public">
+                      {tags.map((tag) => (
+                        <option key={tag} value={tag} />
+                      ))}
+                    </datalist>
+                    <p className="mt-1 text-xs text-gray-500">Separera flera taggar med komma.</p>
                   </div>
                   <Button type="submit" className="w-full" disabled={uploading}>
                     {uploading ? (
@@ -201,34 +284,54 @@ export default function Gallery() {
         }
       />
 
-      {/* Filter */}
       <div className="container py-8">
-        {categories.length > 0 && (
-          <div className="flex items-center gap-4 mb-8">
-            <label className="font-medium">Kategori:</label>
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Alla kategorier" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Alla kategorier</SelectItem>
-                {categories.map(category => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
+        {(albums.length > 0 || tags.length > 0) ? (
+          <div className="mb-8 grid gap-4 md:grid-cols-2">
+            <div className="flex items-center gap-4">
+              <label className="font-medium">Album:</label>
+              <Select value={albumFilter} onValueChange={setAlbumFilter}>
+                <SelectTrigger className="w-[240px]">
+                  <SelectValue placeholder="Alla album" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Alla album</SelectItem>
+                  {albums.map((album) => (
+                    <SelectItem key={album} value={album}>
+                      {album}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-        {/* Gallery Grid */}
-        {!filteredPhotos || filteredPhotos.length === 0 ? (
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 font-medium">
+                <Tag className="h-4 w-4" />
+                Tagg:
+              </label>
+              <Select value={tagFilter} onValueChange={setTagFilter}>
+                <SelectTrigger className="w-[240px]">
+                  <SelectValue placeholder="Alla taggar" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Alla taggar</SelectItem>
+                  {tags.map((tag) => (
+                    <SelectItem key={tag} value={tag}>
+                      {tag}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        ) : null}
+
+        {!filteredPhotos.length ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-16">
-              <ImageIcon className="h-16 w-16 text-gray-300 mb-4" />
-              <p className="text-gray-500 text-lg">Inga bilder att visa</p>
-              {isAdmin && (
+              <ImageIcon className="mb-4 h-16 w-16 text-gray-300" />
+              <p className="text-lg text-gray-500">Inga bilder att visa</p>
+              {canManageGallery ? (
                 <Button
                   variant="outline"
                   className="mt-4"
@@ -237,11 +340,11 @@ export default function Gallery() {
                   <Upload className="mr-2 h-4 w-4" />
                   Ladda upp första bilden
                 </Button>
-              )}
+              ) : null}
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {filteredPhotos.map((photo, index) => (
               <Card
                 key={photo.id}
@@ -252,14 +355,14 @@ export default function Gallery() {
                   <img
                     src={photo.thumbnailUrl || photo.mediumUrl || photo.imageUrl}
                     alt={photo.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                     loading="lazy"
                   />
-                  {isAdmin && (
+                  {canManageGallery ? (
                     <Button
                       variant="destructive"
                       size="icon"
-                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDelete(photo.id);
@@ -267,23 +370,47 @@ export default function Gallery() {
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                  ) : null}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100">
                     <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
-                      <h3 className="font-semibold text-lg">{photo.title}</h3>
-                      {photo.description && (
-                        <p className="text-sm opacity-90 line-clamp-2">{photo.description}</p>
-                      )}
+                      <h3 className="text-lg font-semibold">{photo.title}</h3>
+                      {photo.description ? (
+                        <p className="line-clamp-2 text-sm opacity-90">{photo.description}</p>
+                      ) : null}
                     </div>
                   </div>
                 </div>
+                <CardContent className="space-y-3 p-4">
+                  <div>
+                    <h3 className="font-semibold">{photo.title}</h3>
+                    {photo.category ? (
+                      <p className="text-sm text-gray-600">Album: {photo.category}</p>
+                    ) : null}
+                  </div>
+                  {normalizeTags(photo.tags).length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {normalizeTags(photo.tags).map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setTagFilter(tag);
+                          }}
+                          className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-200"
+                        >
+                          #{tag}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </CardContent>
               </Card>
             ))}
           </div>
         )}
       </div>
 
-      {/* Lightbox */}
       <Lightbox
         open={lightboxIndex >= 0}
         index={lightboxIndex}
