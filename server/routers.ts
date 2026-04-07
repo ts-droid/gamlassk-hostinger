@@ -427,8 +427,16 @@ export const appRouter = router({
         if (!userRole[0] || userRole[0].name !== 'huvudadmin') {
           throw new TRPCError({ code: 'FORBIDDEN', message: 'Only huvudadmin can assign roles' });
         }
-        
-        await db.update(users).set({ roleId: input.roleId }).where(eq(users.id, input.userId));
+
+        const targetRole = await db.select().from(roles).where(eq(roles.id, input.roleId)).limit(1);
+        if (!targetRole[0]) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Role not found' });
+        }
+
+        await db.update(users).set({
+          roleId: input.roleId,
+          role: 'admin',
+        }).where(eq(users.id, input.userId));
         
         return { success: true };
       }),

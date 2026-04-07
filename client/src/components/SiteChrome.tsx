@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { useSiteBranding } from "@/hooks/useCMSContent";
 import { cn } from "@/lib/utils";
-import { CreditCard, FileText, GalleryVerticalEnd, Home, LogIn, Newspaper, UserRound } from "lucide-react";
+import { CreditCard, FileText, GalleryVerticalEnd, Home, LayoutDashboard, LogIn, Newspaper, UserRound } from "lucide-react";
 import { Link } from "wouter";
 
 const primaryClass = "bg-[oklch(0.25_0.08_250)]";
@@ -25,7 +25,7 @@ function isActivePath(currentPath: string | undefined, href: string) {
 
 export function SiteHeader({ currentPath }: { currentPath?: string }) {
   const { siteLogo, siteName } = useSiteBranding();
-  const { isAuthenticated } = useAuth();
+  const { isAdmin, isAuthenticated } = useAuth();
 
   return (
     <header className={cn(primaryClass, "border-b border-white/10 text-white")}>
@@ -46,6 +46,14 @@ export function SiteHeader({ currentPath }: { currentPath?: string }) {
           <div className="flex flex-wrap items-center gap-2">
             {isAuthenticated ? (
               <>
+                {isAdmin ? (
+                  <Button asChild variant="secondary">
+                    <Link href="/admin">
+                      <LayoutDashboard className="h-4 w-4" />
+                      Admin / CMS
+                    </Link>
+                  </Button>
+                ) : null}
                 <Button
                   asChild
                   className="bg-[oklch(0.85_0.12_90)] text-[oklch(0.25_0.08_250)] hover:bg-[oklch(0.8_0.12_90)]"

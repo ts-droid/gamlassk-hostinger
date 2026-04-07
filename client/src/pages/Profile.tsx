@@ -1,6 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
-import { Redirect } from "wouter";
+import { Link, Redirect } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LogoutButton } from "@/components/LogoutButton";
 import { MemberVerificationBanner } from "@/components/MemberVerificationBanner";
@@ -133,23 +133,13 @@ export default function Profile() {
                   )}
                   {user.paymentStatus === 'unpaid' && (
                     <div className="mt-3 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-                      <p className="text-sm text-yellow-800 mb-3">
+                      <p className="text-sm text-yellow-800">
                         <strong>OBS!</strong> Din medlemsavgift är obetald.
                       </p>
-                      <div className="bg-white p-4 rounded-md border border-yellow-300">
-                        <h4 className="font-semibold text-gray-900 mb-3 text-center">Betala med Swish</h4>
-                        <div className="flex flex-col items-center gap-3">
-                          <img 
-                            src="/swish-qr.png" 
-                            alt="Swish QR-kod för medlemsavgift" 
-                            className="w-48 h-auto"
-                          />
-                          <div className="text-center">
-                            <p className="text-sm text-gray-600">Swish-nummer:</p>
-                            <p className="text-xl font-bold text-gray-900">123-616 52 29</p>
-                            <p className="text-xs text-gray-500 mt-2">Ange ditt medlemsnummer i meddelandet</p>
-                          </div>
-                        </div>
+                      <div className="mt-3">
+                        <Button asChild size="sm">
+                          <Link href="/payment">Gå till betalningssidan</Link>
+                        </Button>
                       </div>
                     </div>
                   )}
