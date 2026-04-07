@@ -1,6 +1,7 @@
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -113,6 +114,7 @@ export default function Home() {
     phone: "",
     message: "",
   });
+  const [selectedNews, setSelectedNews] = useState<any | null>(null);
 
   const utils = trpc.useUtils();
   const submitMembership = trpc.membership.submit.useMutation({
@@ -217,7 +219,13 @@ export default function Home() {
             </h2>
             <div className="grid gap-6 md:grid-cols-3">
               {latestNews.map((news) => (
-                <Card key={news.id}>
+                <button
+                  key={news.id}
+                  type="button"
+                  className="text-left"
+                  onClick={() => setSelectedNews(news)}
+                >
+                <Card className="h-full cursor-pointer transition-shadow hover:shadow-lg">
                   {news.imageUrl && (
                     <img 
                       src={news.imageUrl} 
@@ -238,11 +246,46 @@ export default function Home() {
                     />
                   </CardContent>
                 </Card>
+                </button>
               ))}
             </div>
           </div>
         </section>
       )}
+
+      <Dialog open={Boolean(selectedNews)} onOpenChange={(open) => !open && setSelectedNews(null)}>
+        <DialogContent className="max-w-3xl">
+          {selectedNews ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-2xl">{selectedNews.title}</DialogTitle>
+                <DialogDescription>
+                  {selectedNews.publishedAt
+                    ? new Date(selectedNews.publishedAt).toLocaleDateString("sv-SE", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })
+                    : "Ej publicerad"}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-6">
+                {selectedNews.imageUrl ? (
+                  <img
+                    src={selectedNews.imageUrl}
+                    alt={selectedNews.title}
+                    className="max-h-[320px] w-full rounded-md object-cover"
+                  />
+                ) : null}
+                <div
+                  className="prose prose-sm max-w-none text-gray-700 sm:prose-base"
+                  dangerouslySetInnerHTML={{ __html: selectedNews.content }}
+                />
+              </div>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       <FolkspelSection />
 
