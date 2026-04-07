@@ -1,6 +1,13 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useSiteBranding } from "@/hooks/useCMSContent";
 import { cn } from "@/lib/utils";
 import {
@@ -36,16 +43,31 @@ function isActivePath(currentPath: string | undefined, href: string) {
   return currentPath === href || currentPath.startsWith(`${href}/`);
 }
 
+function getBrandLines(siteName: string) {
+  if (siteName.includes(" SSK-")) {
+    const [firstPart, secondPart] = siteName.split(" SSK-");
+    return [firstPart.trim(), `SSK-${secondPart}`];
+  }
+
+  const words = siteName.trim().split(/\s+/);
+  if (words.length >= 3) {
+    return [words.slice(0, -1).join(" "), words[words.length - 1]];
+  }
+
+  return [siteName];
+}
+
 export function SiteHeader({ currentPath }: { currentPath?: string }) {
   const { siteLogo, siteName } = useSiteBranding();
   const { isAdmin, isAuthenticated } = useAuth();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const brandLines = getBrandLines(siteName);
 
   return (
     <header className={cn(headerClass, "border-b border-white/10 shadow-[0_8px_24px_rgba(0,0,0,0.18)]")}>
       <div className="h-1 w-full bg-[#0f3f77]" />
       <div className="container mx-auto px-4">
-        <div className="flex min-h-[78px] items-center justify-between gap-3 py-3 lg:min-h-[110px] lg:gap-4 lg:py-0">
+        <div className="flex min-h-[78px] items-center justify-between gap-3 py-3 lg:grid lg:min-h-[104px] lg:grid-cols-[minmax(250px,320px)_minmax(0,1fr)_auto] lg:items-center lg:gap-8 lg:py-0">
           <Link href="/" className="flex min-w-0 items-center gap-3 sm:gap-4">
             <img
               src={siteLogo}
@@ -53,80 +75,103 @@ export function SiteHeader({ currentPath }: { currentPath?: string }) {
               className="h-[52px] w-[52px] shrink-0 rounded-none object-contain drop-shadow-[0_6px_14px_rgba(0,0,0,0.28)] sm:h-[64px] sm:w-[64px] lg:h-[74px] lg:w-[74px]"
             />
             <div className="min-w-0">
-              <p className="truncate text-[1rem] font-extrabold leading-none tracking-tight text-white sm:text-[1.25rem] lg:text-[1.9rem]">
-                {siteName}
-              </p>
+              <div className="text-white">
+                {brandLines.map((line) => (
+                  <p
+                    key={line}
+                    className="text-[1rem] font-extrabold leading-[1.02] tracking-tight sm:text-[1.18rem] lg:text-[1.72rem]"
+                  >
+                    {line}
+                  </p>
+                ))}
+              </div>
               <p className="mt-1 text-[0.72rem] font-semibold text-white/75 sm:text-[0.82rem] lg:text-[0.98rem]">
                 Sveriges äldsta stödförening sedan 1937
               </p>
             </div>
           </Link>
 
-          <div className="hidden lg:flex lg:min-w-0 lg:flex-1 lg:flex-col lg:items-end lg:gap-4">
-            <div className="flex flex-wrap items-center gap-2">
-              {isAuthenticated ? (
-                <>
-                  {isAdmin ? (
-                    <Button
-                      asChild
-                      variant="secondary"
-                      className="border border-white/15 bg-white text-[#002653] hover:bg-white/90"
-                    >
-                      <Link href="/admin">
-                        <LayoutDashboard className="h-4 w-4" />
-                        Admin / CMS
-                      </Link>
-                    </Button>
-                  ) : null}
-                  <Button asChild className={ctaClass}>
-                    <Link href="/payment">
-                      <CreditCard className="h-4 w-4" />
-                      Betala medlemsavgift
-                    </Link>
-                  </Button>
-                  <Button
-                    asChild
-                    variant="secondary"
-                    className="border border-white/15 bg-white text-[#002653] hover:bg-white/90"
-                  >
-                    <Link href="/profile">
-                      <UserRound className="h-4 w-4" />
-                      Min sida
-                    </Link>
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  asChild
-                  variant="secondary"
-                  className="border border-white/15 bg-white text-[#002653] hover:bg-white/90"
+          <nav className="hidden lg:flex lg:min-w-0 lg:flex-wrap lg:items-center lg:justify-center lg:gap-x-5 lg:gap-y-2 lg:justify-self-center xl:gap-x-8">
+            {publicNavItems.map((item) => {
+              const active = isActivePath(currentPath, item.href);
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "inline-flex items-center justify-center px-2 py-2 text-[0.92rem] font-semibold transition-colors hover:text-white xl:text-[0.98rem]",
+                    active ? accentClass : "text-white",
+                  )}
                 >
-                  <Link href="/login">
-                    <LogIn className="h-4 w-4" />
-                    Logga in
-                  </Link>
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="hidden lg:flex lg:items-center lg:justify-end">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="h-12 rounded-none border border-white/30 bg-white/6 px-5 text-base font-semibold text-white hover:bg-white/10 hover:text-white"
+                >
+                  Mer
+                  <Menu className="h-6 w-6" />
                 </Button>
-              )}
-            </div>
-
-            <nav className="flex flex-wrap items-center gap-x-6 gap-y-3 text-[1.08rem] font-bold text-white/92">
-              {publicNavItems.map((item) => {
-                const active = isActivePath(currentPath, item.href);
-
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      "inline-flex items-center gap-2 transition-colors hover:text-white",
-                      active ? accentClass : "text-white/88",
-                    )}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                sideOffset={10}
+                className="min-w-[240px] rounded-none border-white/10 bg-[#002653] p-2 text-white shadow-[0_18px_40px_rgba(0,0,0,0.28)]"
+              >
+                {isAuthenticated ? (
+                  <>
+                    {isAdmin ? (
+                      <DropdownMenuItem
+                        asChild
+                        className="cursor-pointer rounded-none px-3 py-3 text-sm font-semibold text-white focus:bg-white/10 focus:text-white"
+                      >
+                        <Link href="/admin">
+                          <LayoutDashboard className="h-4 w-4" />
+                          Admin / CMS
+                        </Link>
+                      </DropdownMenuItem>
+                    ) : null}
+                    <DropdownMenuItem
+                      asChild
+                      className="cursor-pointer rounded-none px-3 py-3 text-sm font-semibold text-white focus:bg-white/10 focus:text-white"
+                    >
+                      <Link href="/payment">
+                        <CreditCard className="h-4 w-4" />
+                        Betala medlemsavgift
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      asChild
+                      className="cursor-pointer rounded-none px-3 py-3 text-sm font-semibold text-white focus:bg-white/10 focus:text-white"
+                    >
+                      <Link href="/profile">
+                        <UserRound className="h-4 w-4" />
+                        Min sida
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <DropdownMenuItem
+                    asChild
+                    className="cursor-pointer rounded-none px-3 py-3 text-sm font-semibold text-white focus:bg-white/10 focus:text-white"
                   >
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </nav>
+                    <Link href="/login">
+                      <LogIn className="h-4 w-4" />
+                      Logga in
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <button

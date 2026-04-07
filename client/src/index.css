@@ -130,11 +130,18 @@
   h3,
   h4,
   h5,
-  h6,
+  h6 {
+    font-family: "Ubuntu", sans-serif;
+  }
   button,
   input,
   select,
-  textarea {
+  textarea,
+  a,
+  label,
+  p,
+  li,
+  span {
     font-family: "Nunito Sans", sans-serif;
   }
   button:not(:disabled),
