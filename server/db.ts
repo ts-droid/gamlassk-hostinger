@@ -6,6 +6,28 @@ import mysql from "mysql2/promise";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
+function normalizePermissions(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string");
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item): item is string => typeof item === "string");
+      }
+    } catch {
+      return value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+  }
+
+  return [];
+}
+
 const USER_SCHEMA_PATCHES = [
   ["password", "ADD COLUMN `password` varchar(255)"],
   ["roleId", "ADD COLUMN `roleId` int"],
@@ -200,14 +222,15 @@ export async function userHasPermission(userId: number, permission: string): Pro
     }
 
     const role = userResult[0].role;
+    const permissions = normalizePermissions(role.permissions);
     
     // Check if role has manage_all permission (huvudadmin)
-    if (role.permissions.includes('manage_all')) {
+    if (permissions.includes('manage_all')) {
       return true;
     }
     
     // Check if role has the specific permission
-    return role.permissions.includes(permission);
+    return permissions.includes(permission);
   } catch (error) {
     console.error("[Database] Failed to check permission:", error);
     return false;

@@ -17,6 +17,28 @@ import DocumentManagement from "@/components/admin/DocumentManagement";
 import PaymentVerification from "@/components/admin/PaymentVerification";
 import { PageHero, SiteFooter, SiteHeader } from "@/components/SiteChrome";
 
+function normalizePermissions(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string");
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item): item is string => typeof item === "string");
+      }
+    } catch {
+      return value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+  }
+
+  return [];
+}
+
 export default function Admin() {
   const { user, isLoading } = useAuth();
   const { data: rolesData } = trpc.roles.list.useQuery();
@@ -28,7 +50,7 @@ export default function Admin() {
       const role = rolesData.find(r => r.id === user.roleId);
       if (role) {
         setUserRole(role);
-        setUserPermissions(role.permissions as string[] || []);
+        setUserPermissions(normalizePermissions(role.permissions));
       }
     }
   }, [user, rolesData]);

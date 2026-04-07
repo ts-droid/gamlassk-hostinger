@@ -334,6 +334,22 @@ __export(db_exports, {
 import { eq, and, sql, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
+function normalizePermissions(value) {
+  if (Array.isArray(value)) {
+    return value.filter((item) => typeof item === "string");
+  }
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item) => typeof item === "string");
+      }
+    } catch {
+      return value.split(",").map((item) => item.trim()).filter(Boolean);
+    }
+  }
+  return [];
+}
 function parseDatabaseUrl(databaseUrl) {
   const parsed = new URL(databaseUrl);
   return {
@@ -465,10 +481,11 @@ async function userHasPermission(userId, permission) {
       return false;
     }
     const role = userResult[0].role;
-    if (role.permissions.includes("manage_all")) {
+    const permissions = normalizePermissions(role.permissions);
+    if (permissions.includes("manage_all")) {
       return true;
     }
-    return role.permissions.includes(permission);
+    return permissions.includes(permission);
   } catch (error) {
     console.error("[Database] Failed to check permission:", error);
     return false;
@@ -2177,6 +2194,22 @@ import { TRPCError as TRPCError3 } from "@trpc/server";
 import { z as z2 } from "zod";
 import { desc as desc3, eq as eq4, isNotNull, gte, sql as sql3 } from "drizzle-orm";
 import crypto3 from "crypto";
+function normalizePermissions2(value) {
+  if (Array.isArray(value)) {
+    return value.filter((item) => typeof item === "string");
+  }
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item) => typeof item === "string");
+      }
+    } catch {
+      return value.split(",").map((item) => item.trim()).filter(Boolean);
+    }
+  }
+  return [];
+}
 var appRouter = router({
   // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
@@ -2389,7 +2422,11 @@ var appRouter = router({
       if (!user[0] || user[0].role !== "admin") {
         throw new TRPCError3({ code: "FORBIDDEN", message: "Access denied" });
       }
-      return await db.select().from(roles);
+      const allRoles = await db.select().from(roles);
+      return allRoles.map((role) => ({
+        ...role,
+        permissions: normalizePermissions2(role.permissions)
+      }));
     }),
     // Create new role (huvudadmin only)
     create: protectedProcedure.input(z2.object({

@@ -19,6 +19,28 @@ const AVAILABLE_PERMISSIONS = [
   { id: "view_members", label: "Visa medlemmar", description: "Se medlemsregister med kontaktuppgifter" },
 ];
 
+function normalizePermissions(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string");
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item): item is string => typeof item === "string");
+      }
+    } catch {
+      return value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+  }
+
+  return [];
+}
+
 export default function RoleManagement() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<any>(null);
@@ -86,7 +108,7 @@ export default function RoleManagement() {
     setFormData({
       name: role.name,
       description: role.description || "",
-      permissions: role.permissions || [],
+      permissions: normalizePermissions(role.permissions),
     });
   };
 
@@ -290,7 +312,7 @@ export default function RoleManagement() {
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-2">
-                {(role.permissions as string[])?.map((permission) => {
+                {normalizePermissions(role.permissions).map((permission) => {
                   const permDef = AVAILABLE_PERMISSIONS.find(p => p.id === permission);
                   return (
                     <span

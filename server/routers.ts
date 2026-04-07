@@ -10,6 +10,28 @@ import { desc, eq, isNotNull, gte, sql } from "drizzle-orm";
 import { storagePut } from "./storage";
 import crypto from "crypto";
 
+function normalizePermissions(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string");
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item): item is string => typeof item === "string");
+      }
+    } catch {
+      return value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+  }
+
+  return [];
+}
+
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -290,7 +312,11 @@ export const appRouter = router({
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
       }
       
-      return await db.select().from(roles);
+      const allRoles = await db.select().from(roles);
+      return allRoles.map((role) => ({
+        ...role,
+        permissions: normalizePermissions(role.permissions),
+      }));
     }),
     
     // Create new role (huvudadmin only)
