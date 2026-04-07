@@ -1,12 +1,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Link } from "wouter";
-import { Home, Calendar, Users, FileText, Loader2 } from "lucide-react";
+import { Calendar, Users, FileText, Loader2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { useSiteBranding } from "@/hooks/useCMSContent";
+import { PageHero, SiteFooter, SiteHeader } from "@/components/SiteChrome";
 
 export default function Statutes() {
   const { data: content, isLoading } = trpc.cms.getPageContent.useQuery({ page: 'statutes' });
-  const { siteLogo, siteName } = useSiteBranding();
 
   const getContent = (key: string) => {
     const section = content?.find(c => c.sectionKey === key && c.published === 1);
@@ -23,24 +21,11 @@ export default function Statutes() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-[oklch(0.25_0.08_250)] text-white">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <img src={siteLogo} alt="Gamla SSK Logo" className="h-16 w-16" />
-              <div>
-                <h1 className="text-2xl font-bold">Stadgar & Information</h1>
-                <p className="text-sm opacity-90">{siteName}</p>
-              </div>
-            </div>
-            <Link href="/" className="flex items-center gap-2 hover:text-[oklch(0.85_0.12_90)]">
-              <Home className="h-5 w-5" />
-              <span>Tillbaka till startsidan</span>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <SiteHeader currentPath="/statutes" />
+      <PageHero
+        title="Stadgar och information"
+        description="Föreningens bakgrund, verksamhet och aktuella stadgar samlade på ett ställe."
+      />
 
       <main className="container mx-auto px-4 py-12">
         {/* Introduction */}
@@ -341,21 +326,7 @@ export default function Statutes() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-[oklch(0.25_0.08_250)] text-white py-8">
-        <div className="container mx-auto px-4 text-center">
-          <p className="mb-4">© 2024 Föreningen Gamla SSK-are. Alla rättigheter förbehållna.</p>
-          <div className="flex gap-4 justify-center">
-            <Link href="/" className="hover:text-[oklch(0.85_0.12_90)]">
-              Startsida
-            </Link>
-            <Link href="/statutes" className="hover:text-[oklch(0.85_0.12_90)]">
-              Stadgar
-            </Link>
-            <a href="#" className="hover:text-[oklch(0.85_0.12_90)]">Kontakt</a>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

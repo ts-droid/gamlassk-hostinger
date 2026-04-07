@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Calendar as CalendarIcon, MapPin, Clock, Users, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/_core/hooks/useAuth';
-import { useSiteBranding } from '@/hooks/useCMSContent';
+import { PageHero, SiteFooter, SiteHeader } from "@/components/SiteChrome";
 
 const locales = {
   sv: sv,
@@ -25,8 +25,7 @@ const localizer = dateFnsLocalizer({
 });
 
 export default function Calendar() {
-  const { siteLogo, siteName } = useSiteBranding();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [view, setView] = useState<View>('month');
   const [date, setDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
@@ -137,21 +136,11 @@ export default function Calendar() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-900 to-blue-700 text-white py-16">
-        <div className="container">
-          <div className="mb-4 flex items-center gap-4">
-            <img src={siteLogo} alt={siteName} className="h-16 w-16 rounded-md object-cover" />
-            <div>
-              <h1 className="text-4xl font-bold">Evenemangskalender</h1>
-              <p className="text-sm text-blue-100">{siteName}</p>
-            </div>
-          </div>
-          <p className="text-xl text-blue-100">
-            Se alla kommande evenemang och anmäl dig direkt
-          </p>
-        </div>
-      </div>
+      <SiteHeader currentPath="/calendar" />
+      <PageHero
+        title="Evenemangskalender"
+        description="Se alla kommande evenemang, prenumerera på kalendern och anmäl dig direkt."
+      />
 
       {/* Calendar Subscription */}
       <div className="container py-8">
@@ -358,6 +347,7 @@ export default function Calendar() {
           )}
         </DialogContent>
       </Dialog>
+      <SiteFooter />
     </div>
   );
 }

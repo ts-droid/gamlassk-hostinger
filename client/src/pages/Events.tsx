@@ -1,7 +1,6 @@
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Link } from "wouter";
-import { Home, Calendar as CalendarIcon, MapPin, Clock, Users, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { Calendar as CalendarIcon, MapPin, Clock, Users, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -10,13 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useSiteBranding } from "@/hooks/useCMSContent";
+import { PageHero, SiteFooter, SiteHeader } from "@/components/SiteChrome";
 
 export default function Events() {
-  const { siteLogo } = useSiteBranding();
   const { data: eventsData } = trpc.events.list.useQuery();
   const { data: myEvents } = trpc.events.myEvents.useQuery();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [registeringEventId, setRegisteringEventId] = useState<number | null>(null);
   const [notes, setNotes] = useState("");
 
@@ -89,26 +87,11 @@ export default function Events() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-[oklch(0.25_0.08_250)] text-white">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <img src={siteLogo} alt="Gamla SSK Logo" className="h-16 w-16" />
-              <div>
-                <h1 className="text-2xl font-bold">Kalender & Evenemang</h1>
-                <p className="text-sm opacity-90">Föreningen Gamla SSK-are</p>
-              </div>
-            </div>
-            <Link href="/">
-              <Button variant="ghost" className="text-white hover:bg-white/10">
-                <Home className="mr-2 h-4 w-4" />
-                Hem
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <SiteHeader currentPath="/calendar" />
+      <PageHero
+        title="Kalender och evenemang"
+        description="Se våra kommande aktiviteter och anmäl dig direkt här."
+      />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
@@ -260,12 +243,7 @@ export default function Events() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="bg-gray-800 text-white mt-16 py-8">
-        <div className="container mx-auto px-4 text-center">
-          <p>&copy; 2024 Föreningen Gamla SSK-are. Alla rättigheter förbehållna.</p>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

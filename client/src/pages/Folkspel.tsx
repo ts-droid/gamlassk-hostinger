@@ -1,41 +1,34 @@
-import { ExternalLink, Heart, ShoppingCart } from "lucide-react";
+import { ExternalLink, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useSiteBranding } from "@/hooks/useCMSContent";
+import { PageHero, SiteFooter, SiteHeader } from "@/components/SiteChrome";
 
 const FOLKSPEL_URL = "https://www.folkspel.se/foreningsbutik/?s=8fbba238-adf1-ee11-844c-005056809ebc";
 
 export default function Folkspel() {
-  const { siteLogo, siteName } = useSiteBranding();
   const openFolkspel = () => {
     window.open(FOLKSPEL_URL, "_blank", "noopener,noreferrer");
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-900 to-blue-700 text-white py-16">
-        <div className="container">
-          <div className="max-w-3xl mx-auto text-center">
-            <img src={siteLogo} alt={siteName} className="mx-auto mb-4 h-20 w-20 rounded-md object-cover" />
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              Stöd Föreningen Gamla SSK
-            </h1>
-            <p className="text-xl text-blue-100 mb-6">
-              Köp lotter och bingolotter - varje köp stödjer vår förening
-            </p>
-            <Button 
-              size="lg" 
-              onClick={openFolkspel}
-              className="bg-yellow-500 hover:bg-yellow-600 text-blue-900 font-bold"
-            >
-              <ShoppingCart className="w-5 h-5 mr-2" />
-              Öppna Folkspels Butik
-              <ExternalLink className="w-4 h-4 ml-2" />
-            </Button>
-          </div>
-        </div>
-      </div>
+      <SiteHeader currentPath="/folkspel" />
+      <PageHero
+        title="Stöd Föreningen Gamla SSK"
+        description="Köp lotter och bingolotter. Varje köp stödjer vår förening."
+        centered
+        actions={
+          <Button
+            size="lg"
+            onClick={openFolkspel}
+            className="bg-[oklch(0.85_0.12_90)] text-[oklch(0.25_0.08_250)] hover:bg-[oklch(0.8_0.12_90)]"
+          >
+            <ShoppingCart className="w-5 h-5 mr-2" />
+            Öppna Folkspels butik
+            <ExternalLink className="w-4 h-4 ml-2" />
+          </Button>
+        }
+      />
 
       {/* Info Section */}
       <div className="container py-12">
@@ -131,6 +124,7 @@ export default function Folkspel() {
           </div>
         </div>
       </div>
+      <SiteFooter />
     </div>
   );
 }

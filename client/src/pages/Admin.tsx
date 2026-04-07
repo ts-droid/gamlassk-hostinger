@@ -15,10 +15,9 @@ import EventsManagement from "@/components/admin/EventsManagement";
 import CMSDashboard from "@/components/admin/CMSDashboard";
 import DocumentManagement from "@/components/admin/DocumentManagement";
 import PaymentVerification from "@/components/admin/PaymentVerification";
-import { useSiteBranding } from "@/hooks/useCMSContent";
+import { PageHero, SiteFooter, SiteHeader } from "@/components/SiteChrome";
 
 export default function Admin() {
-  const { siteLogo, siteName } = useSiteBranding();
   const { user, isLoading } = useAuth();
   const { data: rolesData } = trpc.roles.list.useQuery();
   const [userRole, setUserRole] = useState<any>(null);
@@ -48,17 +47,11 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <img src={siteLogo} alt={siteName} className="h-16 w-16 rounded-md object-cover" />
-            <div>
-              <h1 className="text-2xl font-bold">Administratörspanel - Gamla SSK</h1>
-              <p className="text-gray-600">Välkommen, {user.name}</p>
-            </div>
-          </div>
-        </div>
-      </header>
+      <SiteHeader />
+      <PageHero
+        title="Administratörspanel"
+        description={`Välkommen ${user.name}. Här hanterar du innehåll, medlemmar, roller och dokument.`}
+      />
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="news" className="w-full">
@@ -116,6 +109,7 @@ export default function Admin() {
           </TabsContent>
         </Tabs>
       </main>
+      <SiteFooter />
     </div>
   );
 }

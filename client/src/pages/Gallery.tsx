@@ -12,10 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Image as ImageIcon, Upload, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { useSiteBranding } from "@/hooks/useCMSContent";
+import { PageHero, SiteFooter, SiteHeader } from "@/components/SiteChrome";
 
 export default function Gallery() {
-  const { siteLogo, siteName } = useSiteBranding();
   const { user, isAuthenticated } = useAuth();
   const [lightboxIndex, setLightboxIndex] = useState(-1);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -119,101 +118,88 @@ export default function Gallery() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-900 to-blue-700 text-white py-16">
-        <div className="container">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="mb-4 flex items-center gap-4">
-                <img src={siteLogo} alt={siteName} className="h-16 w-16 rounded-md object-cover" />
-                <div>
-                  <h1 className="text-4xl font-bold">Bildgalleri</h1>
-                  <p className="text-sm text-blue-100">{siteName}</p>
-                </div>
-              </div>
-              <p className="text-xl text-blue-100">
-                Bilder från föreningens evenemang och aktiviteter
-              </p>
-            </div>
-            
-            {isAdmin && (
-              <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="secondary" size="lg">
-                    <Upload className="mr-2 h-5 w-5" />
-                    Ladda upp bild
+      <SiteHeader currentPath="/gallery" />
+      <PageHero
+        title="Bildgalleri"
+        description="Bilder från föreningens evenemang och aktiviteter."
+        actions={
+          isAdmin ? (
+            <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="secondary" size="lg">
+                  <Upload className="mr-2 h-5 w-5" />
+                  Ladda upp bild
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Ladda upp bild</DialogTitle>
+                  <DialogDescription>
+                    Bilden kommer automatiskt att komprimeras och optimeras
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleFileSelect} className="space-y-4">
+                  <div>
+                    <Label htmlFor="file">Välj bild</Label>
+                    <Input
+                      id="file"
+                      name="file"
+                      type="file"
+                      accept="image/*"
+                      ref={fileInputRef}
+                      required
+                      disabled={uploading}
+                    />
+                    <p className="text-sm text-gray-500 mt-1">Max 10MB</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="title">Titel *</Label>
+                    <Input
+                      id="title"
+                      name="title"
+                      required
+                      disabled={uploading}
+                      placeholder="T.ex. Vårfest 2024"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="description">Beskrivning</Label>
+                    <Textarea
+                      id="description"
+                      name="description"
+                      disabled={uploading}
+                      placeholder="Valfri beskrivning av bilden"
+                      rows={3}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="category">Kategori</Label>
+                    <Input
+                      id="category"
+                      name="category"
+                      disabled={uploading}
+                      placeholder="T.ex. Evenemang, Matcher, Historiskt"
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={uploading}>
+                    {uploading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Laddar upp...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Ladda upp
+                      </>
+                    )}
                   </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Ladda upp bild</DialogTitle>
-                    <DialogDescription>
-                      Bilden kommer automatiskt att komprimeras och optimeras
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleFileSelect} className="space-y-4">
-                    <div>
-                      <Label htmlFor="file">Välj bild</Label>
-                      <Input
-                        id="file"
-                        name="file"
-                        type="file"
-                        accept="image/*"
-                        ref={fileInputRef}
-                        required
-                        disabled={uploading}
-                      />
-                      <p className="text-sm text-gray-500 mt-1">Max 10MB</p>
-                    </div>
-                    <div>
-                      <Label htmlFor="title">Titel *</Label>
-                      <Input
-                        id="title"
-                        name="title"
-                        required
-                        disabled={uploading}
-                        placeholder="T.ex. Vårfest 2024"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="description">Beskrivning</Label>
-                      <Textarea
-                        id="description"
-                        name="description"
-                        disabled={uploading}
-                        placeholder="Valfri beskrivning av bilden"
-                        rows={3}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="category">Kategori</Label>
-                      <Input
-                        id="category"
-                        name="category"
-                        disabled={uploading}
-                        placeholder="T.ex. Evenemang, Matcher, Historiskt"
-                      />
-                    </div>
-                    <Button type="submit" className="w-full" disabled={uploading}>
-                      {uploading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Laddar upp...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="mr-2 h-4 w-4" />
-                          Ladda upp
-                        </>
-                      )}
-                    </Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            )}
-          </div>
-        </div>
-      </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          ) : null
+        }
+      />
 
       {/* Filter */}
       <div className="container py-8">
@@ -304,6 +290,7 @@ export default function Gallery() {
         close={() => setLightboxIndex(-1)}
         slides={lightboxSlides}
       />
+      <SiteFooter />
     </div>
   );
 }

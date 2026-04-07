@@ -1,0 +1,4 @@
+id,name,description,permissions,isCustom,createdAt,updatedAt
+1,huvudadmin,Huvudadministratör med full åtkomst,"[""manage_all"", ""manage_news"", ""manage_members"", ""manage_roles"", ""manage_users"", ""view_members""]",0,2025-11-14 15:04:03,2025-11-14 15:57:05
+2,nyhetsadmin,Administratör för nyhetshantering,"[""manage_news""]",0,2025-11-14 15:04:03,2025-11-14 15:04:03
+3,medlemsadmin,Administratör för medlemshantering,"[""manage_members"", ""view_members""]",0,2025-11-14 15:04:03,2025-11-14 15:04:03

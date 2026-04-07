@@ -1,0 +1,27 @@
+id,phase,title,description,estimatedHours,priority,status,order,completedAt,completedBy,createdAt,updatedAt
+1,Fas 1: Snabba förbättringar,Lägg till logeinformation,Publicera information om föreningens loge i Scaniarinken under 'Om föreningen'-sidan via CMS,1,high,pending,1,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+2,Fas 1: Snabba förbättringar,Granska och ersätt synliga e-postadresser,Ersätt alla synliga e-postadresser med 'Maila'-länkar (kontaktformulär) för att minska spam,2,high,pending,2,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+3,Fas 1: Snabba förbättringar,Optimera CTA för bingolottorekrytering,Förbättra call-to-action på startsidan för att rekrytera nya bingolottoförsäljare,1,high,pending,3,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+4,Fas 1: Snabba förbättringar,Konfigurera e-postgrupper för routing,"Sätt upp e-postgrupper så att medlemsansökningar kan routas till rätt mottagare (styrelse, ekonomi, etc.)",1,high,pending,4,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+5,Fas 2: Medlemsgruppering,Skapa member_tags tabell,Skapa databasschema för medlemstaggning,1,high,pending,1,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+6,Fas 2: Medlemsgruppering,Implementera taggnings-API,"Skapa tRPC endpoints för tagghantering (list, create, delete, assign)",2,high,pending,2,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+7,Fas 2: Medlemsgruppering,Skapa admin-sida för tagghantering,Bygg CRUD-gränssnitt för att skapa och hantera taggar,2,high,pending,3,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+8,Fas 2: Medlemsgruppering,Lägg till tagg-visning i medlemslista,Visa taggar som badges i medlemslistan och lägg till filter,2,high,pending,4,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+9,Fas 2: Medlemsgruppering,Skapa fördefinierade taggar,"Lägg till taggar: Styrelse, Bingogrupp, Bilbingogrupp, Vårfestkommitté, Inaktiv",1,high,pending,5,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+10,Fas 2: Medlemsgruppering,Implementera gruppbaserad e-postutskick,Skapa funktion för att skicka e-post till alla medlemmar med specifik tagg,3,high,pending,6,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+11,Fas 2: Medlemsgruppering,Skapa admin-sida 'Skicka meddelande',Bygg gränssnitt för att välja taggar och skicka meddelanden till grupper,2,high,pending,7,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+12,Fas 2: Medlemsgruppering,Utvärdera SMS-tjänster (valfritt),"Undersök 46elks, Twilio och andra SMS-leverantörer",2,medium,pending,8,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+13,Fas 2: Medlemsgruppering,Implementera SMS-integration (valfritt),Integrera SMS-utskick via 46elks för brådskande kommunikation,4,medium,pending,9,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+14,Fas 3: Rekrytering,Skapa bingo_sellers tabell,Skapa databasschema för bingolottoförsäljare,1,medium,pending,1,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+15,Fas 3: Rekrytering,Implementera API för försäljare,Skapa tRPC endpoints för att hantera bingolottoförsäljare,1,medium,pending,2,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+16,Fas 3: Rekrytering,Skapa rekryteringssida,"Bygg dedikerad sida /bingo-rekrytering med hero, fördelar och anmälningsformulär",2,medium,pending,3,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+17,Fas 3: Rekrytering,Lägg till lista över hjälpare,Visa nuvarande bingolottoförsäljare på rekryteringssidan,1,medium,pending,4,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+18,Fas 3: Rekrytering,Skapa admin-sida för försäljare,Bygg gränssnitt för att hantera försäljaransökningar,1,medium,pending,5,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+19,Fas 3: Rekrytering,Lägg till social media-delning,Installera react-share och lägg till delningsknappar på nyheter och evenemang,2,medium,pending,6,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+20,Fas 4: Integrationer,Begär Spira API-nyckel,Kontakta Spira och få tillgång till API-dokumentation och nyckel,1,low,pending,1,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+21,Fas 4: Integrationer,Studera Spira API-dokumentation,Läs igenom API-dokumentation och planera integration,2,low,pending,2,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+22,Fas 4: Integrationer,Skapa Spira-klient,Implementera HTTP-klient för Spira API i backend,2,low,pending,3,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+23,Fas 4: Integrationer,Implementera medlemsdata-synkronisering,Synkronisera medlemsdata från webbplats till Spira,3,low,pending,4,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+24,Fas 4: Integrationer,Implementera betalningsstatus-import,Importera betalningsstatus från Spira till webbplatsen,2,low,pending,5,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+25,Fas 4: Integrationer,Skapa admin-gränssnitt för Spira,Bygg UI för manuell synkronisering och statusvisning,2,low,pending,6,,,2026-02-17 11:26:32,2026-02-17 11:26:32
+26,Fas 4: Integrationer,Implementera automatisk synkronisering,Skapa daglig cron-job för automatisk Spira-synkronisering,2,low,pending,7,,,2026-02-17 11:26:32,2026-02-17 11:26:32

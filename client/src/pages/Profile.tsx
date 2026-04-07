@@ -11,10 +11,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { useSiteBranding } from "@/hooks/useCMSContent";
+import { PageHero, SiteFooter, SiteHeader } from "@/components/SiteChrome";
 
 export default function Profile() {
-  const { siteLogo, siteName } = useSiteBranding();
   const { user, isLoading: authLoading } = useAuth();
   const [formData, setFormData] = useState({
     name: "",
@@ -79,17 +78,11 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <img src={siteLogo} alt={siteName} className="h-16 w-16 rounded-md object-cover" />
-            <div>
-              <h1 className="text-2xl font-bold">Min sida - Gamla SSK</h1>
-              <p className="text-gray-600">Hantera din medlemsprofil</p>
-            </div>
-          </div>
-        </div>
-      </header>
+      <SiteHeader currentPath="/profile" />
+      <PageHero
+        title="Min sida"
+        description="Hantera din medlemsprofil, uppdatera dina uppgifter och följ din medlemsstatus."
+      />
 
       <main className="container mx-auto px-4 py-8 max-w-2xl">
         <div className="mb-6">
@@ -262,6 +255,7 @@ export default function Profile() {
           </CardContent>
         </Card>
       </main>
+      <SiteFooter />
     </div>
   );
 }

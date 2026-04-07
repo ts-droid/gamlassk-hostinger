@@ -1,5 +1,4 @@
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,11 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Link } from "wouter";
-import { Calendar, Users, Trophy, Mail, Phone, FileText, CreditCard } from "lucide-react";
-import { useCMSContent, useSiteSettings, useBoardMembers, useSiteBranding } from "@/hooks/useCMSContent";
-import { UnifiedLoginDialog } from "@/components/UnifiedLoginDialog";
+import { Calendar, Users, Trophy, Mail, Phone } from "lucide-react";
+import { useCMSContent, useBoardMembers } from "@/hooks/useCMSContent";
 import { BankIDErrorAlert } from "@/components/BankIDErrorAlert";
 import { FolkspelSection } from "@/components/FolkspelSection";
+import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 
 // Upcoming Events Component
 function UpcomingEventsSection() {
@@ -81,14 +80,9 @@ function UpcomingEventsSection() {
 }
 
 export default function Home() {
-  const { user } = useAuth();
   const { data: latestNews } = trpc.news.latest.useQuery();
-  const { getContent, isLoading: contentLoading } = useCMSContent("home");
-  const { getSetting, isLoading: settingsLoading } = useSiteSettings();
-  const { siteLogo } = useSiteBranding();
+  const { getContent } = useCMSContent("home");
   const { members, isLoading: membersLoading } = useBoardMembers();
-  
-  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   
   const [membershipForm, setMembershipForm] = useState({
     name: "",
@@ -115,59 +109,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <header className="bg-[oklch(0.25_0.08_250)] text-white">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <img 
-                src={siteLogo}
-                alt="Gamla SSK Logo" 
-                className="h-20 w-20 md:h-24 md:w-24" 
-              />
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold">{getSetting("site_name", "Föreningen Gamla SSK-are")}</h1>
-                <p className="text-sm opacity-90">Sveriges äldsta stödförening - Sedan 1937</p>
-              </div>
-            </div>
-            <nav className="flex gap-2 md:gap-4">
-              {user ? (
-                <>
-                  <Link href="/documents">
-                    <Button variant="ghost" className="text-white hover:bg-white/10 hidden md:flex">
-                      <FileText className="h-4 w-4 mr-2" />
-                      Dokument
-                    </Button>
-                  </Link>
-                  <Link href="/members">
-                    <Button variant="ghost" className="text-white hover:bg-white/10 hidden md:flex">
-                      <Users className="h-4 w-4 mr-2" />
-                      Medlemmar
-                    </Button>
-                  </Link>
-                  <Link href="/payment">
-                    <Button className="bg-yellow-500 hover:bg-yellow-600 text-black font-semibold">
-                      <CreditCard className="h-4 w-4 mr-2" />
-                      <span className="hidden sm:inline">Betala medlemsavgift</span>
-                      <span className="sm:hidden">Betala</span>
-                    </Button>
-                  </Link>
-                  <Link href="/profile">
-                    <Button variant="secondary">Min sida</Button>
-                  </Link>
-                </>
-              ) : (
-                <Button 
-                  variant="secondary"
-                  onClick={() => setLoginDialogOpen(true)}
-                >
-                  Logga in
-                </Button>
-              )}
-            </nav>
-          </div>
-        </div>
-      </header>
+      <SiteHeader currentPath="/" />
 
       <BankIDErrorAlert />
 
@@ -428,32 +370,7 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-[oklch(0.25_0.08_250)] text-white py-8">
-        <div className="container mx-auto px-4 text-center">
-          <p className="mb-4">© 2024 Föreningen Gamla SSK-are. Alla rättigheter förbehållna.</p>
-          <div className="flex gap-4 justify-center">
-            <Link href="/" className="hover:text-[oklch(0.85_0.12_90)]">
-              Startsida
-            </Link>
-            <Link href="/statutes" className="hover:text-[oklch(0.85_0.12_90)]">
-              Stadgar
-            </Link>
-            <Link href="/gallery" className="hover:text-[oklch(0.85_0.12_90)]">
-              Bildgalleri
-            </Link>
-            <Link href="/events" className="hover:text-[oklch(0.85_0.12_90)]">
-              Evenemang
-            </Link>
-            <a href="#" className="hover:text-[oklch(0.85_0.12_90)]">Kontakt</a>
-          </div>
-        </div>
-      </footer>
-      
-      {/* Unified Login Dialog */}
-      <UnifiedLoginDialog 
-        open={loginDialogOpen} 
-        onOpenChange={setLoginDialogOpen} 
-      />
+      <SiteFooter />
     </div>
   );
 }

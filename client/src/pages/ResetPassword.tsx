@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageHero, SiteFooter, SiteHeader } from "@/components/SiteChrome";
 
 function getResetToken() {
   if (typeof window === "undefined") {
@@ -59,83 +60,91 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30 p-6">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-2 text-center">
-          <CardTitle className="text-2xl">{APP_TITLE}</CardTitle>
-          <CardDescription>
-            {isComplete
-              ? "Ditt lösenord har uppdaterats."
-              : "Ange ditt nya lösenord för att slutföra återställningen."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isComplete ? (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Du kan nu logga in med ditt nya lösenord.
-              </p>
-              <Button asChild className="w-full">
-                <Link href="/login">Till inloggningen</Link>
-              </Button>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="password">Nytt lösenord</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  autoComplete="new-password"
-                  disabled={resetPasswordMutation.isPending}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Bekräfta lösenord</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
-                  autoComplete="new-password"
-                  disabled={resetPasswordMutation.isPending}
-                />
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={resetPasswordMutation.isPending || !token}
-              >
-                {resetPasswordMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sparar...
-                  </>
-                ) : (
-                  "Spara nytt lösenord"
-                )}
-              </Button>
-
-              {!token && (
-                <p className="text-sm text-destructive">
-                  Den här länken är ogiltig. Begär en ny återställningslänk från
-                  inloggningssidan.
+    <div className="min-h-screen bg-muted/30">
+      <SiteHeader />
+      <PageHero
+        title="Återställ lösenord"
+        description="Välj ett nytt lösenord och slutför återställningen på ett tryggt sätt."
+      />
+      <main className="flex items-center justify-center p-6 py-12">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-2 text-center">
+            <CardTitle className="text-2xl">{APP_TITLE}</CardTitle>
+            <CardDescription>
+              {isComplete
+                ? "Ditt lösenord har uppdaterats."
+                : "Ange ditt nya lösenord för att slutföra återställningen."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isComplete ? (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Du kan nu logga in med ditt nya lösenord.
                 </p>
-              )}
-
-              <div className="text-center text-xs text-muted-foreground">
-                <Link href="/login" className="underline hover:text-foreground">
-                  Tillbaka till inloggningen
-                </Link>
+                <Button asChild className="w-full">
+                  <Link href="/login">Till inloggningen</Link>
+                </Button>
               </div>
-            </form>
-          )}
-        </CardContent>
-      </Card>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="password">Nytt lösenord</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    autoComplete="new-password"
+                    disabled={resetPasswordMutation.isPending}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Bekräfta lösenord</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    autoComplete="new-password"
+                    disabled={resetPasswordMutation.isPending}
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={resetPasswordMutation.isPending || !token}
+                >
+                  {resetPasswordMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sparar...
+                    </>
+                  ) : (
+                    "Spara nytt lösenord"
+                  )}
+                </Button>
+
+                {!token && (
+                  <p className="text-sm text-destructive">
+                    Den här länken är ogiltig. Begär en ny återställningslänk från
+                    inloggningssidan.
+                  </p>
+                )}
+
+                <div className="text-center text-xs text-muted-foreground">
+                  <Link href="/login" className="underline hover:text-foreground">
+                    Tillbaka till inloggningen
+                  </Link>
+                </div>
+              </form>
+            )}
+          </CardContent>
+        </Card>
+      </main>
+      <SiteFooter />
     </div>
   );
 }

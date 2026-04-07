@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Download, Eye, Lock } from "lucide-react";
 import { getLoginUrl } from "@/const";
-import { useSiteBranding } from "@/hooks/useCMSContent";
+import { PageHero, SiteFooter, SiteHeader } from "@/components/SiteChrome";
 
 const CATEGORY_LABELS = {
   stadgar: "Stadgar",
@@ -17,8 +17,7 @@ const CATEGORY_LABELS = {
 };
 
 export default function Documents() {
-  const { siteLogo, siteName } = useSiteBranding();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   
   const { data: documents, isLoading } = trpc.documents.list.useQuery();
@@ -65,21 +64,11 @@ export default function Documents() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-blue-900 to-blue-700 text-white py-16">
-        <div className="container mx-auto px-4">
-          <div className="mb-4 flex items-center gap-4">
-            <img src={siteLogo} alt={siteName} className="h-16 w-16 rounded-md object-cover" />
-            <div>
-              <h1 className="text-4xl font-bold">Dokumentbibliotek</h1>
-              <p className="text-sm text-blue-100">{siteName}</p>
-            </div>
-          </div>
-          <p className="text-xl text-blue-100">
-            Hitta stadgar, protokoll och andra viktiga dokument
-          </p>
-        </div>
-      </header>
+      <SiteHeader currentPath="/documents" />
+      <PageHero
+        title="Dokumentbibliotek"
+        description="Hitta stadgar, protokoll och andra viktiga dokument på samma plats."
+      />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-12">
@@ -243,6 +232,7 @@ export default function Documents() {
           ))}
         </Tabs>
       </main>
+      <SiteFooter />
     </div>
   );
 }
