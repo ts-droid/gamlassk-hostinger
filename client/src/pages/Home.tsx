@@ -18,6 +18,34 @@ function UpcomingEventsSection() {
   const { data: allEvents, isLoading } = trpc.events.list.useQuery();
   const upcomingEvents = allEvents?.slice(0, 3) || [];
 
+  const formatEventDate = (eventDate: Date | string, eventTime?: string | null) => {
+    const date = new Date(eventDate);
+
+    if (Number.isNaN(date.getTime())) {
+      return "Datum ej angivet";
+    }
+
+    if (eventTime) {
+      const [hours, minutes] = eventTime.split(":").map(Number);
+      if (!Number.isNaN(hours) && !Number.isNaN(minutes)) {
+        date.setHours(hours, minutes, 0, 0);
+      }
+    }
+
+    return date.toLocaleDateString("sv-SE", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      ...(eventTime
+        ? {
+            hour: "2-digit" as const,
+            minute: "2-digit" as const,
+          }
+        : {}),
+    });
+  };
+
   if (isLoading || !upcomingEvents || upcomingEvents.length === 0) {
     return null;
   }
@@ -44,14 +72,7 @@ function UpcomingEventsSection() {
                     <CardTitle className="text-xl mb-2">{event.title}</CardTitle>
                     <CardDescription className="flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
-                      {event.eventTime ? new Date(event.eventTime).toLocaleDateString('sv-SE', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      }) : 'Datum ej angivet'}
+                      {formatEventDate(event.eventDate, event.eventTime)}
                     </CardDescription>
                   </div>
                 </div>
