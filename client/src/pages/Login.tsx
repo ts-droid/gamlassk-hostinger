@@ -21,7 +21,7 @@ export default function Login() {
   }, []);
 
   if (isLoading) {
-    return <div className="flex items-center justify-center min-h-screen">Laddar...</div>;
+    return <div className="flex items-center justify-center min-h-screen">{getContent("loading_text", "Laddar...")}</div>;
   }
 
   if (isAuthenticated) {
@@ -48,7 +48,7 @@ export default function Login() {
 
           <div className="mt-6 text-xs text-muted-foreground">
             <Link href="/" className="underline hover:text-foreground">
-              Tillbaka till startsidan
+              {getContent("back_link_label", "Tillbaka till startsidan")}
             </Link>
           </div>
         </div>

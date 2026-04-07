@@ -82,16 +82,16 @@ export default function ResetPassword() {
             {isComplete ? (
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Du kan nu logga in med ditt nya lösenord.
+                  {getContent("success_helper_text", "Du kan nu logga in med ditt nya lösenord.")}
                 </p>
                 <Button asChild className="w-full">
-                  <Link href="/login">Till inloggningen</Link>
+                  <Link href="/login">{getContent("login_button_label", "Till inloggningen")}</Link>
                 </Button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="password">Nytt lösenord</Label>
+                  <Label htmlFor="password">{getContent("new_password_label", "Nytt lösenord")}</Label>
                   <Input
                     id="password"
                     type="password"
@@ -103,7 +103,7 @@ export default function ResetPassword() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Bekräfta lösenord</Label>
+                  <Label htmlFor="confirmPassword">{getContent("confirm_password_label", "Bekräfta lösenord")}</Label>
                   <Input
                     id="confirmPassword"
                     type="password"
@@ -122,23 +122,22 @@ export default function ResetPassword() {
                   {resetPasswordMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sparar...
+                      {getContent("saving_label", "Sparar...")}
                     </>
                   ) : (
-                    "Spara nytt lösenord"
+                    getContent("submit_button_label", "Spara nytt lösenord")
                   )}
                 </Button>
 
                 {!token && (
                   <p className="text-sm text-destructive">
-                    Den här länken är ogiltig. Begär en ny återställningslänk från
-                    inloggningssidan.
+                    {getContent("invalid_token_text", "Den här länken är ogiltig. Begär en ny återställningslänk från inloggningssidan.")}
                   </p>
                 )}
 
                 <div className="text-center text-xs text-muted-foreground">
                   <Link href="/login" className="underline hover:text-foreground">
-                    Tillbaka till inloggningen
+                    {getContent("back_link_label", "Tillbaka till inloggningen")}
                   </Link>
                 </div>
               </form>
