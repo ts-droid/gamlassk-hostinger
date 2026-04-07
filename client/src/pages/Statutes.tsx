@@ -2,8 +2,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Calendar, Users, FileText, Loader2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { PageHero, SiteFooter, SiteHeader } from "@/components/SiteChrome";
+import { useCMSContent } from "@/hooks/useCMSContent";
 
 export default function Statutes() {
+  const { getContent: getCmsContent } = useCMSContent("statutes");
   const { data: content, isLoading } = trpc.cms.getPageContent.useQuery({ page: 'statutes' });
 
   const getContent = (key: string) => {
@@ -23,15 +25,15 @@ export default function Statutes() {
     <div className="min-h-screen bg-gray-50">
       <SiteHeader currentPath="/statutes" />
       <PageHero
-        title="Stadgar och information"
-        description="Föreningens bakgrund, verksamhet och aktuella stadgar samlade på ett ställe."
+        title={getCmsContent("hero_title", "Stadgar och information")}
+        description={getCmsContent("hero_description", "Föreningens bakgrund, verksamhet och aktuella stadgar samlade på ett ställe.")}
       />
 
       <main className="container mx-auto px-4 py-12">
         {/* Introduction */}
         <div className="max-w-4xl mx-auto mb-12">
           <h2 className="text-3xl font-bold text-[oklch(0.25_0.08_250)] mb-6">
-            Om Föreningen Gamla SSK-are
+            {getCmsContent("intro_title", "Om Föreningen Gamla SSK-are")}
           </h2>
           <div className="prose prose-lg max-w-none">
             <div

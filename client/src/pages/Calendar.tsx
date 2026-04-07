@@ -30,6 +30,7 @@ const localizer = dateFnsLocalizer({
 });
 
 export default function Calendar() {
+  const { getContent: getCalendarContent } = useCMSContent('calendar');
   const { isAuthenticated } = useAuth();
   const [view, setView] = useState<View>('month');
   const [date, setDate] = useState(new Date());
@@ -178,17 +179,20 @@ export default function Calendar() {
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <SiteHeader currentPath="/calendar" />
       <PageHero
-        title="Evenemangskalender"
-        description="Se alla kommande evenemang, prenumerera på kalendern och anmäl dig direkt."
+        title={getCalendarContent('hero_title', 'Evenemangskalender')}
+        description={getCalendarContent('hero_description', 'Se alla kommande evenemang, prenumerera på kalendern och anmäl dig direkt.')}
       />
 
       {/* Calendar Subscription */}
       <div className="container py-8">
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Prenumerera på kalendern</CardTitle>
+            <CardTitle>{getCalendarContent('subscription_title', 'Prenumerera på kalendern')}</CardTitle>
             <CardDescription>
-              Lägg till alla evenemang i din egen kalender och få automatiska uppdateringar
+              {getCalendarContent(
+                'subscription_description',
+                'Lägg till alla evenemang i din egen kalender och få automatiska uppdateringar',
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 sm:flex-row">

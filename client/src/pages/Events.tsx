@@ -105,16 +105,16 @@ export default function Events() {
     <div className="min-h-screen bg-gray-50">
       <SiteHeader currentPath="/calendar" />
       <PageHero
-        title="Kalender och evenemang"
-        description="Se våra kommande aktiviteter och anmäl dig direkt här."
+        title={getContent("hero_title", "Kalender och evenemang")}
+        description={getContent("hero_description", "Se våra kommande aktiviteter och anmäl dig direkt här.")}
       />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">Kommande evenemang</h2>
+          <h2 className="text-3xl font-bold mb-2">{getContent("intro_title", "Kommande evenemang")}</h2>
           <p className="text-gray-600">
-            Se våra kommande aktiviteter och anmäl dig direkt här!
+            {getContent("intro_description", "Se våra kommande aktiviteter och anmäl dig direkt här!")}
           </p>
         </div>
 

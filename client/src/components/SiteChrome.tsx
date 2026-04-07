@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useSiteBranding } from "@/hooks/useCMSContent";
+import { useCMSContent, useSiteBranding } from "@/hooks/useCMSContent";
 import { cn } from "@/lib/utils";
 import {
   CreditCard,
@@ -275,32 +275,39 @@ export function PageHero({
 
 export function SiteFooter() {
   const { siteLogo, siteName } = useSiteBranding();
+  const { getContent } = useCMSContent("site");
+  const footerSocialTitle = getContent("footer_social_title", "SSK i sociala medier");
+  const footerSocialLinks = getContent("footer_social_links", "<p>Facebook</p><p>Instagram</p><p>X</p><p>YouTube</p>");
+  const footerContactTitle = getContent("footer_contact_title", "Kontakt");
+  const footerContactLines = getContent(
+    "footer_contact_lines",
+    "<p>Föreningen Gamla SSK-are</p><p>Stöd, historia och gemenskap</p><p>Södertälje</p>",
+  );
+  const footerLinksTitle = getContent("footer_links_title", "Snabblänkar");
+  const footerBottomText = getContent("footer_bottom_text", "Powered by Gamla SSK");
 
   return (
     <footer className="mt-auto bg-[#002653] text-white">
       <div className="container mx-auto px-4 py-12 lg:py-16">
         <div className="grid gap-10 lg:grid-cols-[1.2fr_1fr_1fr] lg:gap-12">
           <div>
-            <p className="text-[1.15rem] font-extrabold uppercase tracking-tight sm:text-[1.7rem]">SSK i sociala medier</p>
-            <div className="mt-4 space-y-2 text-base font-semibold text-white/90 sm:text-xl">
-              <p>Facebook</p>
-              <p>Instagram</p>
-              <p>X</p>
-              <p>YouTube</p>
-            </div>
+            <p className="text-[1.15rem] font-extrabold uppercase tracking-tight sm:text-[1.7rem]">{footerSocialTitle}</p>
+            <div
+              className="mt-4 space-y-2 text-base font-semibold text-white/90 sm:text-xl"
+              dangerouslySetInnerHTML={{ __html: footerSocialLinks }}
+            />
           </div>
 
           <div>
-            <p className="text-[1.15rem] font-extrabold uppercase tracking-tight sm:text-[1.7rem]">Kontakt</p>
-            <div className="mt-4 space-y-2 text-base font-semibold text-white/90 sm:text-xl">
-              <p>Föreningen Gamla SSK-are</p>
-              <p>Stöd, historia och gemenskap</p>
-              <p>Södertälje</p>
-            </div>
+            <p className="text-[1.15rem] font-extrabold uppercase tracking-tight sm:text-[1.7rem]">{footerContactTitle}</p>
+            <div
+              className="mt-4 space-y-2 text-base font-semibold text-white/90 sm:text-xl"
+              dangerouslySetInnerHTML={{ __html: footerContactLines }}
+            />
           </div>
 
           <div>
-            <p className="text-[1.15rem] font-extrabold uppercase tracking-tight sm:text-[1.7rem]">Snabblänkar</p>
+            <p className="text-[1.15rem] font-extrabold uppercase tracking-tight sm:text-[1.7rem]">{footerLinksTitle}</p>
             <div className="mt-4 flex flex-col gap-2 text-base font-semibold sm:text-xl">
               {publicNavItems.map((item) => (
                 <Link key={item.href} href={item.href} className="text-white/90 transition-colors hover:text-white">
@@ -321,7 +328,7 @@ export function SiteFooter() {
             className="h-20 w-20 object-contain drop-shadow-[0_10px_18px_rgba(0,0,0,0.25)] sm:h-24 sm:w-24"
           />
           <p className="text-lg font-bold text-white sm:text-xl">{siteName}</p>
-          <p className="text-base font-semibold text-white/75 sm:text-lg">Powered by Gamla SSK</p>
+          <p className="text-base font-semibold text-white/75 sm:text-lg">{footerBottomText}</p>
         </div>
       </div>
     </footer>

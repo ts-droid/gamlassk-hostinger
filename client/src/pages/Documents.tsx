@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Download, Eye, Lock } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { PageHero, SiteFooter, SiteHeader } from "@/components/SiteChrome";
+import { useCMSContent } from "@/hooks/useCMSContent";
 
 const CATEGORY_LABELS = {
   stadgar: "Stadgar",
@@ -17,6 +18,7 @@ const CATEGORY_LABELS = {
 };
 
 export default function Documents() {
+  const { getContent } = useCMSContent("documents");
   const { isAuthenticated } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   
@@ -66,8 +68,8 @@ export default function Documents() {
     <div className="min-h-screen bg-gray-50">
       <SiteHeader currentPath="/documents" />
       <PageHero
-        title="Dokumentbibliotek"
-        description="Hitta stadgar, protokoll och andra viktiga dokument på samma plats."
+        title={getContent("hero_title", "Dokumentbibliotek")}
+        description={getContent("hero_description", "Hitta stadgar, protokoll och andra viktiga dokument på samma plats.")}
       />
 
       {/* Main Content */}

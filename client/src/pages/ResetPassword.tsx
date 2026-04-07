@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHero, SiteFooter, SiteHeader } from "@/components/SiteChrome";
+import { useCMSContent } from "@/hooks/useCMSContent";
 
 function getResetToken() {
   if (typeof window === "undefined") {
@@ -20,6 +21,7 @@ function getResetToken() {
 }
 
 export default function ResetPassword() {
+  const { getContent } = useCMSContent("reset-password");
   const token = useMemo(() => getResetToken(), []);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -63,8 +65,8 @@ export default function ResetPassword() {
     <div className="min-h-screen bg-muted/30">
       <SiteHeader />
       <PageHero
-        title="Återställ lösenord"
-        description="Välj ett nytt lösenord och slutför återställningen på ett tryggt sätt."
+        title={getContent("hero_title", "Återställ lösenord")}
+        description={getContent("hero_description", "Välj ett nytt lösenord och slutför återställningen på ett tryggt sätt.")}
       />
       <main className="flex items-center justify-center p-6 py-12">
         <Card className="w-full max-w-md">
@@ -72,8 +74,8 @@ export default function ResetPassword() {
             <CardTitle className="text-2xl">{APP_TITLE}</CardTitle>
             <CardDescription>
               {isComplete
-                ? "Ditt lösenord har uppdaterats."
-                : "Ange ditt nya lösenord för att slutföra återställningen."}
+                ? getContent("complete_description", "Ditt lösenord har uppdaterats.")
+                : getContent("form_description", "Ange ditt nya lösenord för att slutföra återställningen.")}
             </CardDescription>
           </CardHeader>
           <CardContent>

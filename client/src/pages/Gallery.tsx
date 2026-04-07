@@ -20,6 +20,7 @@ import { Image as ImageIcon, Loader2, Tag, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { PageHero, SiteFooter, SiteHeader } from "@/components/SiteChrome";
+import { useCMSContent } from "@/hooks/useCMSContent";
 
 function normalizePermissions(value: unknown): string[] {
   if (Array.isArray(value)) {
@@ -59,6 +60,7 @@ function normalizeTags(value: unknown): string[] {
 }
 
 export default function Gallery() {
+  const { getContent } = useCMSContent("gallery");
   const { user, isAuthenticated } = useAuth();
   const [lightboxIndex, setLightboxIndex] = useState(-1);
   const [albumFilter, setAlbumFilter] = useState<string>("all");
@@ -181,8 +183,8 @@ export default function Gallery() {
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <SiteHeader currentPath="/gallery" />
       <PageHero
-        title="Bildgalleri"
-        description="Bilder från föreningens evenemang och aktiviteter. Filtrera på album eller taggar för att hitta rätt snabbare."
+        title={getContent("hero_title", "Bildgalleri")}
+        description={getContent("hero_description", "Bilder från föreningens evenemang och aktiviteter. Filtrera på album eller taggar för att hitta rätt snabbare.")}
         actions={
           canManageGallery ? (
             <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>

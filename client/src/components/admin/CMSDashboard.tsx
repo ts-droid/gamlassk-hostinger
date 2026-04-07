@@ -12,10 +12,16 @@ export default function CMSDashboard() {
   const [selectedPage, setSelectedPage] = useState("home");
 
   const pages = [
+    { id: "site", name: "Globalt / Footer", icon: Layout },
     { id: "home", name: "Startsida", icon: Layout },
     { id: "statutes", name: "Stadgar", icon: Layout },
+    { id: "documents", name: "Dokument", icon: Layout },
+    { id: "calendar", name: "Kalender", icon: Layout },
     { id: "gallery", name: "Bildgalleri", icon: Image },
     { id: "events", name: "Evenemang", icon: Layout },
+    { id: "folkspel", name: "Folkspel", icon: Layout },
+    { id: "login", name: "Inloggning", icon: Layout },
+    { id: "reset-password", name: "Återställ lösenord", icon: Layout },
   ];
 
   return (
@@ -42,7 +48,7 @@ export default function CMSDashboard() {
         </TabsList>
 
         <TabsContent value="pages" className="mt-6">
-          <div className="grid md:grid-cols-4 gap-4 mb-6">
+          <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5 mb-6">
             {pages.map((page) => {
               const Icon = page.icon;
               return (

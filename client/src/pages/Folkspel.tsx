@@ -2,10 +2,12 @@ import { ExternalLink, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHero, SiteFooter, SiteHeader } from "@/components/SiteChrome";
+import { useCMSContent } from "@/hooks/useCMSContent";
 
 const FOLKSPEL_URL = "https://www.folkspel.se/foreningsbutik/?s=8fbba238-adf1-ee11-844c-005056809ebc";
 
 export default function Folkspel() {
+  const { getContent } = useCMSContent("folkspel");
   const openFolkspel = () => {
     window.open(FOLKSPEL_URL, "_blank", "noopener,noreferrer");
   };
@@ -14,8 +16,8 @@ export default function Folkspel() {
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <SiteHeader currentPath="/folkspel" />
       <PageHero
-        title="Stöd Föreningen Gamla SSK"
-        description="Köp lotter och bingolotter. Varje köp stödjer vår förening."
+        title={getContent("hero_title", "Stöd Föreningen Gamla SSK")}
+        description={getContent("hero_description", "Köp lotter och bingolotter. Varje köp stödjer vår förening.")}
         centered
         actions={
           <Button
