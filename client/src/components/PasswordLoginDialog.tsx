@@ -27,7 +27,14 @@ export function PasswordLoginDialog({ open, onOpenChange }: PasswordLoginDialogP
   const loginMutation = trpc.auth.loginWithPassword.useMutation({
     onSuccess: () => {
       toast.success("Inloggning lyckades!");
-      window.location.reload(); // Reload to update auth state
+      onOpenChange(false);
+
+      const redirectTarget =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("redirect") || "/profile"
+          : "/profile";
+
+      window.location.assign(redirectTarget);
     },
     onError: (error) => {
       toast.error(error.message || "Inloggning misslyckades");

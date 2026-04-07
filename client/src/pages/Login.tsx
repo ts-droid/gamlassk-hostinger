@@ -1,19 +1,34 @@
 import { UnifiedLoginDialog } from "@/components/UnifiedLoginDialog";
 import { APP_TITLE } from "@/const";
+import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
-import { Link } from "wouter";
+import { Link, Redirect } from "wouter";
 import { PageHero, SiteFooter, SiteHeader } from "@/components/SiteChrome";
 
 export default function Login() {
+  const { isAuthenticated, isLoading, user } = useAuth();
   const [open, setOpen] = useState(true);
+
+  const redirectTarget =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("redirect") || "/profile"
+      : "/profile";
 
   useEffect(() => {
     setOpen(true);
   }, []);
 
+  if (isLoading) {
+    return <div className="flex items-center justify-center min-h-screen">Laddar...</div>;
+  }
+
+  if (isAuthenticated) {
+    return <Redirect to={user?.role === "admin" ? "/admin" : redirectTarget} />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <SiteHeader />
+      <SiteHeader currentPath="/login" />
       <PageHero
         title="Logga in"
         description="Använd din e-postadress och ditt lösenord för att komma vidare."
