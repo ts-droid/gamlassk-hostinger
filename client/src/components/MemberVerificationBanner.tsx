@@ -43,7 +43,7 @@ export function MemberVerificationBanner() {
           Du är inloggad men inte registrerad som medlem i Gamla SSK-are.
         </p>
         <Link href="/#bli-medlem">
-          <Button variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700">
+          <Button variant="default" size="sm">
             Ansök om medlemskap
           </Button>
         </Link>

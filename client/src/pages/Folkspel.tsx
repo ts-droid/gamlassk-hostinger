@@ -21,7 +21,6 @@ export default function Folkspel() {
           <Button
             size="lg"
             onClick={openFolkspel}
-            className="bg-[oklch(0.85_0.12_90)] text-[oklch(0.25_0.08_250)] hover:bg-[oklch(0.8_0.12_90)]"
           >
             <ShoppingCart className="w-5 h-5 mr-2" />
             Öppna Folkspels butik

@@ -26,7 +26,8 @@ import { Link } from "wouter";
 
 const headerClass = "bg-[#002653] text-white";
 const accentClass = "text-[#e4c46a]";
-const ctaClass = "bg-[#0064b0] text-white hover:bg-[#0b78cf]";
+const ctaClass =
+  "border-[#0d5a98] bg-linear-to-b from-[#0a5c9f] to-[#1c70b8] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] hover:from-[#1b70b8] hover:to-[#3a89cc]";
 
 const publicNavItems = [
   { href: "/", label: "Startsida", icon: Home },

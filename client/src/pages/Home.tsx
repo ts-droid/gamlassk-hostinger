@@ -144,10 +144,10 @@ export default function Home() {
             {getContent("hero_subtitle", "En förening för alla som varit med och byggt Södertälje SK genom åren")}
           </p>
           <div className="flex flex-col justify-center gap-4 animate-fade-in-up animation-delay-400 sm:flex-row">
-            <Button size="lg" className="w-full bg-[oklch(0.85_0.12_90)] text-[oklch(0.25_0.08_250)] hover:bg-[oklch(0.80_0.12_90)] sm:w-auto">
+            <Button size="lg" className="w-full sm:w-auto">
               <a href="#bli-medlem">Bli medlem</a>
             </Button>
-            <Button size="lg" variant="outline" className="w-full border-white text-white hover:bg-white/10 sm:w-auto">
+            <Button size="lg" variant="outline" className="w-full border-white/60 sm:w-auto">
               <a href="#om-oss">Läs mer</a>
             </Button>
           </div>
@@ -295,7 +295,7 @@ export default function Home() {
                 </div>
                 <Button 
                   type="submit" 
-                  className="w-full bg-[oklch(0.85_0.12_90)] text-[oklch(0.25_0.08_250)] hover:bg-[oklch(0.80_0.12_90)]"
+                  className="w-full"
                   disabled={submitMembership.isPending}
                 >
                   {submitMembership.isPending ? "Skickar..." : "Skicka ansökan"}
