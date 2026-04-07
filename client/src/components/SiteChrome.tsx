@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { useSiteBranding } from "@/hooks/useCMSContent";
@@ -11,8 +12,8 @@ import {
   LogIn,
   Menu,
   Newspaper,
-  Search,
   UserRound,
+  X,
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -38,29 +39,30 @@ function isActivePath(currentPath: string | undefined, href: string) {
 export function SiteHeader({ currentPath }: { currentPath?: string }) {
   const { siteLogo, siteName } = useSiteBranding();
   const { isAdmin, isAuthenticated } = useAuth();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
     <header className={cn(headerClass, "border-b border-white/10 shadow-[0_8px_24px_rgba(0,0,0,0.18)]")}>
       <div className="h-1 w-full bg-[#0f3f77]" />
       <div className="container mx-auto px-4">
-        <div className="flex min-h-[96px] flex-col justify-center gap-5 py-4 xl:min-h-[110px] xl:flex-row xl:items-center xl:justify-between xl:py-0">
-          <Link href="/" className="flex min-w-0 items-center gap-4">
+        <div className="flex min-h-[78px] items-center justify-between gap-3 py-3 lg:min-h-[110px] lg:gap-4 lg:py-0">
+          <Link href="/" className="flex min-w-0 items-center gap-3 sm:gap-4">
             <img
               src={siteLogo}
               alt={siteName}
-              className="h-[74px] w-[74px] rounded-none object-contain drop-shadow-[0_6px_14px_rgba(0,0,0,0.28)]"
+              className="h-[52px] w-[52px] shrink-0 rounded-none object-contain drop-shadow-[0_6px_14px_rgba(0,0,0,0.28)] sm:h-[64px] sm:w-[64px] lg:h-[74px] lg:w-[74px]"
             />
             <div className="min-w-0">
-              <p className="truncate text-[1.9rem] font-extrabold leading-none tracking-tight text-white">
+              <p className="truncate text-[1rem] font-extrabold leading-none tracking-tight text-white sm:text-[1.25rem] lg:text-[1.9rem]">
                 {siteName}
               </p>
-              <p className="mt-1 text-[0.98rem] font-semibold text-white/75">
+              <p className="mt-1 text-[0.72rem] font-semibold text-white/75 sm:text-[0.82rem] lg:text-[0.98rem]">
                 Sveriges äldsta stödförening sedan 1937
               </p>
             </div>
           </Link>
 
-          <div className="flex flex-col gap-4 xl:min-w-0 xl:flex-1 xl:items-end">
+          <div className="hidden lg:flex lg:min-w-0 lg:flex-1 lg:flex-col lg:items-end lg:gap-4">
             <div className="flex flex-wrap items-center gap-2">
               {isAuthenticated ? (
                 <>
@@ -107,35 +109,103 @@ export function SiteHeader({ currentPath }: { currentPath?: string }) {
               )}
             </div>
 
-            <div className="flex w-full items-center justify-between gap-4 xl:w-auto xl:justify-end">
-              <nav className="flex flex-wrap items-center gap-x-6 gap-y-3 text-[1.08rem] font-bold text-white/92">
-                {publicNavItems.map((item) => {
-                  const active = isActivePath(currentPath, item.href);
+            <nav className="flex flex-wrap items-center gap-x-6 gap-y-3 text-[1.08rem] font-bold text-white/92">
+              {publicNavItems.map((item) => {
+                const active = isActivePath(currentPath, item.href);
 
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={cn(
-                        "inline-flex items-center gap-2 transition-colors hover:text-white",
-                        active ? accentClass : "text-white/88",
-                      )}
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "inline-flex items-center gap-2 transition-colors hover:text-white",
+                      active ? accentClass : "text-white/88",
+                    )}
+                  >
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+
+          <button
+            type="button"
+            aria-label={mobileNavOpen ? "Stäng meny" : "Öppna meny"}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition-colors hover:bg-white/10 lg:hidden"
+            onClick={() => setMobileNavOpen((value) => !value)}
+          >
+            {mobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
+
+        <div className={cn("pb-4 lg:hidden", mobileNavOpen ? "block" : "hidden")}>
+          <div className="rounded-2xl border border-white/10 bg-white/6 p-4 backdrop-blur-sm">
+            <nav className="grid gap-2">
+              {publicNavItems.map((item) => {
+                const active = isActivePath(currentPath, item.href);
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "inline-flex items-center gap-3 rounded-xl px-3 py-3 text-base font-bold transition-colors",
+                      active ? "bg-white/12 text-[#e4c46a]" : "text-white/90 hover:bg-white/8",
+                    )}
+                    onClick={() => setMobileNavOpen(false)}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+
+            <div className="mt-4 grid gap-2">
+              {isAuthenticated ? (
+                <>
+                  {isAdmin ? (
+                    <Button
+                      asChild
+                      variant="secondary"
+                      className="justify-start border border-white/15 bg-white text-[#002653] hover:bg-white/90"
                     >
-                      <item.icon className={cn("h-4 w-4 xl:hidden", active ? accentClass : "text-white/70")} />
-                      <span>{item.label}</span>
+                      <Link href="/admin" onClick={() => setMobileNavOpen(false)}>
+                        <LayoutDashboard className="h-4 w-4" />
+                        Admin / CMS
+                      </Link>
+                    </Button>
+                  ) : null}
+                  <Button asChild className={cn(ctaClass, "justify-start")}>
+                    <Link href="/payment" onClick={() => setMobileNavOpen(false)}>
+                      <CreditCard className="h-4 w-4" />
+                      Betala medlemsavgift
                     </Link>
-                  );
-                })}
-              </nav>
-
-              <div className="hidden items-center gap-4 pl-4 text-white/85 xl:flex">
-                <button type="button" aria-label="Sök" className="transition-colors hover:text-white">
-                  <Search className="h-5 w-5" />
-                </button>
-                <button type="button" aria-label="Meny" className="transition-colors hover:text-white">
-                  <Menu className="h-6 w-6" />
-                </button>
-              </div>
+                  </Button>
+                  <Button
+                    asChild
+                    variant="secondary"
+                    className="justify-start border border-white/15 bg-white text-[#002653] hover:bg-white/90"
+                  >
+                    <Link href="/profile" onClick={() => setMobileNavOpen(false)}>
+                      <UserRound className="h-4 w-4" />
+                      Min sida
+                    </Link>
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  asChild
+                  variant="secondary"
+                  className="justify-start border border-white/15 bg-white text-[#002653] hover:bg-white/90"
+                >
+                  <Link href="/login" onClick={() => setMobileNavOpen(false)}>
+                    <LogIn className="h-4 w-4" />
+                    Logga in
+                  </Link>
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -159,20 +229,25 @@ export function PageHero({
     <section className="bg-gradient-to-b from-[#113769] via-[#24548b] to-[#2f67a1] text-white">
       <div
         className={cn(
-          "container mx-auto px-4 py-14 md:py-16",
+          "container mx-auto px-4 py-10 md:py-16",
           centered ? "text-center" : "text-left",
         )}
       >
         <div className={cn("max-w-4xl", centered && "mx-auto")}>
-          <p className="mb-3 text-sm font-extrabold uppercase tracking-[0.28em] text-white/68">
+          <p className="mb-3 text-xs font-extrabold uppercase tracking-[0.22em] text-white/68 sm:text-sm sm:tracking-[0.28em]">
             Föreningen Gamla SSK-are
           </p>
-          <h1 className="text-4xl font-extrabold tracking-tight md:text-5xl">{title}</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl md:text-5xl">{title}</h1>
           {description ? (
-            <p className="mt-4 max-w-3xl text-lg font-semibold text-white/82">{description}</p>
+            <p className="mt-4 max-w-3xl text-base font-semibold text-white/82 sm:text-lg">{description}</p>
           ) : null}
           {actions ? (
-            <div className={cn("mt-8 flex flex-wrap gap-3", centered && "justify-center")}>
+            <div
+              className={cn(
+                "mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap",
+                centered && "justify-center",
+              )}
+            >
               {actions}
             </div>
           ) : null}
@@ -187,11 +262,11 @@ export function SiteFooter() {
 
   return (
     <footer className="mt-auto bg-[#002653] text-white">
-      <div className="container mx-auto px-4 py-14 lg:py-16">
+      <div className="container mx-auto px-4 py-12 lg:py-16">
         <div className="grid gap-10 lg:grid-cols-[1.2fr_1fr_1fr] lg:gap-12">
           <div>
-            <p className="text-[1.7rem] font-extrabold uppercase tracking-tight">SSK i sociala medier</p>
-            <div className="mt-4 space-y-2 text-xl font-semibold text-white/90">
+            <p className="text-[1.15rem] font-extrabold uppercase tracking-tight sm:text-[1.7rem]">SSK i sociala medier</p>
+            <div className="mt-4 space-y-2 text-base font-semibold text-white/90 sm:text-xl">
               <p>Facebook</p>
               <p>Instagram</p>
               <p>X</p>
@@ -200,8 +275,8 @@ export function SiteFooter() {
           </div>
 
           <div>
-            <p className="text-[1.7rem] font-extrabold uppercase tracking-tight">Kontakt</p>
-            <div className="mt-4 space-y-2 text-xl font-semibold text-white/90">
+            <p className="text-[1.15rem] font-extrabold uppercase tracking-tight sm:text-[1.7rem]">Kontakt</p>
+            <div className="mt-4 space-y-2 text-base font-semibold text-white/90 sm:text-xl">
               <p>Föreningen Gamla SSK-are</p>
               <p>Stöd, historia och gemenskap</p>
               <p>Södertälje</p>
@@ -209,8 +284,8 @@ export function SiteFooter() {
           </div>
 
           <div>
-            <p className="text-[1.7rem] font-extrabold uppercase tracking-tight">Snabblänkar</p>
-            <div className="mt-4 flex flex-col gap-2 text-xl font-semibold">
+            <p className="text-[1.15rem] font-extrabold uppercase tracking-tight sm:text-[1.7rem]">Snabblänkar</p>
+            <div className="mt-4 flex flex-col gap-2 text-base font-semibold sm:text-xl">
               {publicNavItems.map((item) => (
                 <Link key={item.href} href={item.href} className="text-white/90 transition-colors hover:text-white">
                   {item.label}
@@ -223,14 +298,14 @@ export function SiteFooter() {
           </div>
         </div>
 
-        <div className="mt-14 flex flex-col items-center justify-center gap-4 border-t border-white/10 pt-10 text-center">
+        <div className="mt-12 flex flex-col items-center justify-center gap-4 border-t border-white/10 pt-8 text-center sm:mt-14 sm:pt-10">
           <img
             src={siteLogo}
             alt={siteName}
-            className="h-24 w-24 object-contain drop-shadow-[0_10px_18px_rgba(0,0,0,0.25)]"
+            className="h-20 w-20 object-contain drop-shadow-[0_10px_18px_rgba(0,0,0,0.25)] sm:h-24 sm:w-24"
           />
-          <p className="text-xl font-bold text-white">{siteName}</p>
-          <p className="text-lg font-semibold text-white/75">Powered by Gamla SSK</p>
+          <p className="text-lg font-bold text-white sm:text-xl">{siteName}</p>
+          <p className="text-base font-semibold text-white/75 sm:text-lg">Powered by Gamla SSK</p>
         </div>
       </div>
     </footer>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Calendar as BigCalendar, dateFnsLocalizer, View } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { sv } from 'date-fns/locale';
@@ -33,6 +33,7 @@ export default function Calendar() {
   const { isAuthenticated } = useAuth();
   const [view, setView] = useState<View>('month');
   const [date, setDate] = useState(new Date());
+  const [isMobileCalendar, setIsMobileCalendar] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [showEventDialog, setShowEventDialog] = useState(false);
   const [showRegistrationDialog, setShowRegistrationDialog] = useState(false);
@@ -151,6 +152,28 @@ export default function Calendar() {
     setHasAcceptedNotice(false);
   };
 
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobileCalendar(mobile);
+      setView((currentView) => {
+        if (mobile && currentView === 'month') {
+          return 'agenda';
+        }
+
+        if (!mobile && currentView === 'agenda') {
+          return 'month';
+        }
+
+        return currentView;
+      });
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <SiteHeader currentPath="/calendar" />
@@ -168,9 +191,10 @@ export default function Calendar() {
               Lägg till alla evenemang i din egen kalender och få automatiska uppdateringar
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex gap-4">
+          <CardContent className="flex flex-col gap-3 sm:flex-row">
             <Button
               variant="outline"
+              className="w-full sm:w-auto"
               onClick={() => {
                 const link = document.createElement('a');
                 link.href = '/api/calendar/feed.ics';
@@ -185,6 +209,7 @@ export default function Calendar() {
             </Button>
             <Button
               variant="outline"
+              className="w-full sm:w-auto"
               onClick={() => {
                 const webcalUrl = window.location.origin.replace('http://', 'webcal://').replace('https://', 'webcal://') + '/api/calendar/feed.ics';
                 navigator.clipboard.writeText(webcalUrl);
@@ -210,9 +235,10 @@ export default function Calendar() {
                 events={calendarEvents}
                 startAccessor="start"
                 endAccessor="end"
-                style={{ height: 600 }}
+                style={{ height: isMobileCalendar ? 520 : 600 }}
                 view={view}
                 onView={setView}
+                views={isMobileCalendar ? ['agenda', 'day'] : ['month', 'week', 'day', 'agenda']}
                 date={date}
                 onNavigate={setDate}
                 onSelectEvent={handleSelectEvent}

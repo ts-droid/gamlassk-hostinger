@@ -287,10 +287,10 @@ export default function Gallery() {
       <div className="container py-8">
         {(albums.length > 0 || tags.length > 0) ? (
           <div className="mb-8 grid gap-4 md:grid-cols-2">
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4">
               <label className="font-medium">Album:</label>
               <Select value={albumFilter} onValueChange={setAlbumFilter}>
-                <SelectTrigger className="w-[240px]">
+                <SelectTrigger className="w-full sm:w-[240px]">
                   <SelectValue placeholder="Alla album" />
                 </SelectTrigger>
                 <SelectContent>
@@ -304,13 +304,13 @@ export default function Gallery() {
               </Select>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4">
               <label className="flex items-center gap-2 font-medium">
                 <Tag className="h-4 w-4" />
                 Tagg:
               </label>
               <Select value={tagFilter} onValueChange={setTagFilter}>
-                <SelectTrigger className="w-[240px]">
+                <SelectTrigger className="w-full sm:w-[240px]">
                   <SelectValue placeholder="Alla taggar" />
                 </SelectTrigger>
                 <SelectContent>

@@ -51,19 +51,19 @@ function UpcomingEventsSection() {
   }
 
   return (
-    <section className="py-16 bg-white">
+    <section className="bg-white py-14 sm:py-16">
       <div className="container mx-auto px-4">
-        <div className="flex justify-between items-center mb-8">
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-3xl font-bold text-[oklch(0.25_0.08_250)]">
             Kommande evenemang
           </h2>
           <Link href="/calendar">
-            <Button variant="outline">
+            <Button variant="outline" className="w-full sm:w-auto">
               Se alla evenemang
             </Button>
           </Link>
         </div>
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {upcomingEvents.map((event) => (
             <Card key={event.id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
@@ -135,19 +135,19 @@ export default function Home() {
       <BankIDErrorAlert />
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-b from-[#001f3f] via-[#003d73] to-[#0066a6] py-32 md:py-40">
+      <section className="bg-gradient-to-b from-[#001f3f] via-[#003d73] to-[#0066a6] py-20 sm:py-28 md:py-40">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-4xl md:text-6xl font-bold text-white mb-6 animate-fade-in-up">
+          <h2 className="mb-6 text-4xl font-bold text-white animate-fade-in-up sm:text-5xl md:text-6xl">
             {getContent("hero_title", "Välkommen till Föreningen Gamla SSK-are")}
           </h2>
-          <p className="text-xl text-white/90 max-w-3xl mx-auto mb-8 animate-fade-in-up animation-delay-200">
+          <p className="mx-auto mb-8 max-w-3xl text-lg text-white/90 animate-fade-in-up animation-delay-200 sm:text-xl">
             {getContent("hero_subtitle", "En förening för alla som varit med och byggt Södertälje SK genom åren")}
           </p>
-          <div className="flex gap-4 justify-center animate-fade-in-up animation-delay-400">
-            <Button size="lg" className="bg-[oklch(0.85_0.12_90)] text-[oklch(0.25_0.08_250)] hover:bg-[oklch(0.80_0.12_90)]">
+          <div className="flex flex-col justify-center gap-4 animate-fade-in-up animation-delay-400 sm:flex-row">
+            <Button size="lg" className="w-full bg-[oklch(0.85_0.12_90)] text-[oklch(0.25_0.08_250)] hover:bg-[oklch(0.80_0.12_90)] sm:w-auto">
               <a href="#bli-medlem">Bli medlem</a>
             </Button>
-            <Button size="lg" variant="outline" className="text-white border-white hover:bg-white/10">
+            <Button size="lg" variant="outline" className="w-full border-white text-white hover:bg-white/10 sm:w-auto">
               <a href="#om-oss">Läs mer</a>
             </Button>
           </div>
@@ -155,9 +155,9 @@ export default function Home() {
       </section>
 
       {/* About Section */}
-      <section id="om-oss" className="py-16 bg-white">
+      <section id="om-oss" className="bg-white py-16">
         <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
+          <div className="grid items-center gap-10 md:grid-cols-2 md:gap-12">
             <div>
               <h2 className="text-3xl font-bold text-[oklch(0.25_0.08_250)] mb-6">
                 {getContent("about_title", "Om Föreningen Gamla SSK-are")}
@@ -169,7 +169,7 @@ export default function Home() {
                 }}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Card>
                 <CardHeader>
                   <Calendar className="h-8 w-8 text-[oklch(0.85_0.12_90)] mb-2" />
@@ -213,7 +213,7 @@ export default function Home() {
             <h2 className="text-3xl font-bold text-[oklch(0.25_0.08_250)] mb-8 text-center">
               Senaste nyheterna
             </h2>
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid gap-6 md:grid-cols-3">
               {latestNews.map((news) => (
                 <Card key={news.id}>
                   {news.imageUrl && (
@@ -312,7 +312,7 @@ export default function Home() {
           <h2 className="text-3xl font-bold text-[oklch(0.25_0.08_250)] mb-8 text-center">
             {getContent("contact_title", "Kontakta styrelsen")}
           </h2>
-          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-3">
             {membersLoading ? (
               <p className="text-center col-span-3">Laddar styrelsemedlemmar...</p>
             ) : members.length > 0 ? (

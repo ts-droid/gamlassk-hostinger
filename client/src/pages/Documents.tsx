@@ -75,13 +75,13 @@ export default function Documents() {
         {!isAuthenticated && (
           <Card className="mb-8 border-blue-200 bg-blue-50">
             <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
                 <Lock className="h-8 w-8 text-blue-600" />
                 <div className="flex-1">
                   <p className="font-semibold text-blue-900">Logga in för att se alla dokument</p>
                   <p className="text-sm text-blue-700">Vissa dokument är endast tillgängliga för medlemmar.</p>
                 </div>
-                <Button asChild>
+                <Button asChild className="w-full sm:w-auto">
                   <a href={getLoginUrl()}>Logga in</a>
                 </Button>
               </div>
@@ -90,7 +90,8 @@ export default function Documents() {
         )}
 
         <Tabs defaultValue="all" className="w-full">
-          <TabsList className="mb-6">
+          <div className="mb-6 overflow-x-auto pb-2">
+            <TabsList className="inline-flex min-w-max">
             <TabsTrigger value="all" onClick={() => setSelectedCategory(null)}>
               Alla dokument
             </TabsTrigger>
@@ -99,7 +100,8 @@ export default function Documents() {
                 {label}
               </TabsTrigger>
             ))}
-          </TabsList>
+            </TabsList>
+          </div>
 
           <TabsContent value="all" className="space-y-6">
             {!documents || documents.length === 0 ? (
@@ -118,7 +120,7 @@ export default function Documents() {
                     {docs.map((doc: any) => (
                       <Card key={doc.id} className="hover:shadow-lg transition-shadow">
                         <CardHeader>
-                          <div className="flex items-start justify-between">
+                          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                             <div className="flex-1">
                               <CardTitle className="flex items-center gap-2">
                                 <FileText className="h-5 w-5 text-blue-600" />
@@ -130,15 +132,16 @@ export default function Documents() {
                                   {doc.description}
                                 </CardDescription>
                               )}
-                              <div className="flex gap-4 mt-3 text-sm text-muted-foreground">
+                              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                                 <span>Storlek: {formatFileSize(doc.fileSize)}</span>
                                 <span>Uppladdad: {formatDate(doc.createdAt)}</span>
                               </div>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
                               <Button
                                 variant="outline"
                                 size="sm"
+                                className="w-full md:w-auto"
                                 onClick={() => window.open(doc.fileUrl, '_blank')}
                               >
                                 <Eye className="mr-2 h-4 w-4" />
@@ -146,6 +149,7 @@ export default function Documents() {
                               </Button>
                               <Button
                                 size="sm"
+                                className="w-full md:w-auto"
                                 onClick={() => {
                                   const link = document.createElement('a');
                                   link.href = doc.fileUrl;
@@ -183,7 +187,7 @@ export default function Documents() {
                   {filteredDocuments?.map((doc: any) => (
                     <Card key={doc.id} className="hover:shadow-lg transition-shadow">
                       <CardHeader>
-                        <div className="flex items-start justify-between">
+                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                           <div className="flex-1">
                             <CardTitle className="flex items-center gap-2">
                               <FileText className="h-5 w-5 text-blue-600" />
@@ -195,15 +199,16 @@ export default function Documents() {
                                 {doc.description}
                               </CardDescription>
                             )}
-                            <div className="flex gap-4 mt-3 text-sm text-muted-foreground">
+                            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                               <span>Storlek: {formatFileSize(doc.fileSize)}</span>
                               <span>Uppladdad: {formatDate(doc.createdAt)}</span>
                             </div>
                           </div>
-                          <div className="flex gap-2">
+                          <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
                             <Button
                               variant="outline"
                               size="sm"
+                              className="w-full md:w-auto"
                               onClick={() => window.open(doc.fileUrl, '_blank')}
                             >
                               <Eye className="mr-2 h-4 w-4" />
@@ -211,6 +216,7 @@ export default function Documents() {
                             </Button>
                             <Button
                               size="sm"
+                              className="w-full md:w-auto"
                               onClick={() => {
                                 const link = document.createElement('a');
                                 link.href = doc.fileUrl;
