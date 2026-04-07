@@ -43,6 +43,10 @@
 }
 
 :root {
+  --ssk-navy: #002653;
+  --ssk-blue: #0064b0;
+  --ssk-blue-deep: #1a3f78;
+  --ssk-gold: #e4c46a;
   --primary: var(--color-blue-700);
   --primary-foreground: var(--color-blue-50);
   --sidebar-primary: var(--color-blue-600);
@@ -119,6 +123,19 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: "Nunito Sans", sans-serif;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  button,
+  input,
+  select,
+  textarea {
+    font-family: "Nunito Sans", sans-serif;
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
