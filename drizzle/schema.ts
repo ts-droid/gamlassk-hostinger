@@ -123,6 +123,7 @@ export const events = mysqlTable("events", {
   type: varchar("type", { length: 100 }), // e.g., "Vårfest", "Bingo", "Match"
   feeAmount: varchar("feeAmount", { length: 20 }),
   paymentInstructions: text("paymentInstructions"),
+  registrationNotice: text("registrationNotice"),
   maxParticipants: int("maxParticipants"), // null = unlimited
   registrationDeadline: timestamp("registrationDeadline"),
   status: mysqlEnum("status", ["draft", "published", "cancelled", "completed"]).default("published").notNull(),

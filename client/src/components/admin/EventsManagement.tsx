@@ -21,6 +21,7 @@ export default function EventsManagement() {
     type: "",
     feeAmount: "",
     paymentInstructions: "",
+    registrationNotice: "",
   });
 
   const { data: eventsData, refetch } = trpc.events.listAll.useQuery();
@@ -29,7 +30,7 @@ export default function EventsManagement() {
     onSuccess: () => {
       toast.success("Evenemang skapat!");
       setIsCreateOpen(false);
-      setFormData({ title: "", description: "", eventDate: "", location: "", type: "", feeAmount: "", paymentInstructions: "" });
+      setFormData({ title: "", description: "", eventDate: "", location: "", type: "", feeAmount: "", paymentInstructions: "", registrationNotice: "" });
       refetch();
     },
     onError: (error) => {
@@ -41,7 +42,7 @@ export default function EventsManagement() {
     onSuccess: () => {
       toast.success("Evenemang uppdaterat!");
       setEditingEvent(null);
-      setFormData({ title: "", description: "", eventDate: "", location: "", type: "", feeAmount: "", paymentInstructions: "" });
+      setFormData({ title: "", description: "", eventDate: "", location: "", type: "", feeAmount: "", paymentInstructions: "", registrationNotice: "" });
       refetch();
     },
     onError: (error) => {
@@ -69,6 +70,7 @@ export default function EventsManagement() {
       eventDate: new Date(formData.eventDate),
       feeAmount: formData.feeAmount || undefined,
       paymentInstructions: formData.paymentInstructions || undefined,
+      registrationNotice: formData.registrationNotice || undefined,
     });
   };
 
@@ -83,6 +85,7 @@ export default function EventsManagement() {
       type: formData.type,
       feeAmount: formData.feeAmount || undefined,
       paymentInstructions: formData.paymentInstructions || undefined,
+      registrationNotice: formData.registrationNotice || undefined,
     });
   };
 
@@ -102,6 +105,7 @@ export default function EventsManagement() {
       type: event.type || "",
       feeAmount: event.feeAmount || "",
       paymentInstructions: event.paymentInstructions || "",
+      registrationNotice: event.registrationNotice || "",
     });
   };
 
@@ -203,6 +207,19 @@ export default function EventsManagement() {
                 />
                 <p className="mt-2 text-xs text-gray-500">
                   Den här informationen kan användas i anmälningsrutan tillsammans med CMS-texten för events-sidan.
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="registrationNotice">Egen anmälningstext för eventet</Label>
+                <Textarea
+                  id="registrationNotice"
+                  value={formData.registrationNotice}
+                  onChange={(e) => setFormData({ ...formData, registrationNotice: e.target.value })}
+                  placeholder="Valfritt. Om du fyller i detta används texten i anmälningsrutan i stället för den globala CMS-texten."
+                  rows={5}
+                />
+                <p className="mt-2 text-xs text-gray-500">
+                  Du kan använda placeholders som <code>{"{{title}}"}</code>, <code>{"{{feeAmount}}"}</code>, <code>{"{{paymentInstructions}}"}</code>, <code>{"{{eventDate}}"}</code> och <code>{"{{location}}"}</code>.
                 </p>
               </div>
             </div>
@@ -309,6 +326,15 @@ export default function EventsManagement() {
                             rows={3}
                           />
                         </div>
+                        <div>
+                          <Label htmlFor="edit-registrationNotice">Egen anmälningstext för eventet</Label>
+                          <Textarea
+                            id="edit-registrationNotice"
+                            value={formData.registrationNotice}
+                            onChange={(e) => setFormData({ ...formData, registrationNotice: e.target.value })}
+                            rows={5}
+                          />
+                        </div>
                       </div>
                       <DialogFooter>
                         <Button variant="outline" onClick={() => setEditingEvent(null)}>
@@ -353,6 +379,11 @@ export default function EventsManagement() {
                 {event.paymentInstructions && (
                   <p className="text-sm text-gray-600">
                     <span className="font-medium">Betalning:</span> {event.paymentInstructions}
+                  </p>
+                )}
+                {event.registrationNotice && (
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium">Egen anmälningstext:</span> Ja
                   </p>
                 )}
               </div>

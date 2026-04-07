@@ -49,6 +49,7 @@ const GALLERY_SCHEMA_PATCHES = [
 const EVENT_SCHEMA_PATCHES = [
   ["feeAmount", "ADD COLUMN `feeAmount` varchar(20)"],
   ["paymentInstructions", "ADD COLUMN `paymentInstructions` text"],
+  ["registrationNotice", "ADD COLUMN `registrationNotice` text"],
 ] as const;
 
 const SYSTEM_ROLE_SEEDS = [

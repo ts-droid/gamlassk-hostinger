@@ -183,6 +183,7 @@ var init_schema = __esm({
       // e.g., "Vårfest", "Bingo", "Match"
       feeAmount: varchar("feeAmount", { length: 20 }),
       paymentInstructions: text("paymentInstructions"),
+      registrationNotice: text("registrationNotice"),
       maxParticipants: int("maxParticipants"),
       // null = unlimited
       registrationDeadline: timestamp("registrationDeadline"),
@@ -767,7 +768,8 @@ var init_db = __esm({
     ];
     EVENT_SCHEMA_PATCHES = [
       ["feeAmount", "ADD COLUMN `feeAmount` varchar(20)"],
-      ["paymentInstructions", "ADD COLUMN `paymentInstructions` text"]
+      ["paymentInstructions", "ADD COLUMN `paymentInstructions` text"],
+      ["registrationNotice", "ADD COLUMN `registrationNotice` text"]
     ];
     SYSTEM_ROLE_SEEDS = [
       {
@@ -1891,6 +1893,7 @@ async function getUserEvents(userId) {
     type: events.type,
     feeAmount: events.feeAmount,
     paymentInstructions: events.paymentInstructions,
+    registrationNotice: events.registrationNotice,
     maxParticipants: events.maxParticipants,
     registrationDeadline: events.registrationDeadline,
     status: events.status,
@@ -2750,6 +2753,7 @@ var appRouter = router({
       type: z2.string().optional(),
       feeAmount: z2.string().optional(),
       paymentInstructions: z2.string().optional(),
+      registrationNotice: z2.string().optional(),
       maxParticipants: z2.number().optional(),
       registrationDeadline: z2.date().optional(),
       status: z2.enum(["draft", "published", "cancelled", "completed"]).optional(),
@@ -2775,6 +2779,7 @@ var appRouter = router({
       type: z2.string().optional(),
       feeAmount: z2.string().optional(),
       paymentInstructions: z2.string().optional(),
+      registrationNotice: z2.string().optional(),
       maxParticipants: z2.number().optional(),
       registrationDeadline: z2.date().optional(),
       status: z2.enum(["draft", "published", "cancelled", "completed"]).optional(),

@@ -8,6 +8,7 @@ type EventRegistrationDetails = {
   title?: string | null;
   feeAmount?: string | null;
   paymentInstructions?: string | null;
+  registrationNotice?: string | null;
   location?: string | null;
   eventDate?: string | Date | null;
 };
@@ -54,6 +55,6 @@ export function renderEventRegistrationNotice(
 
   return Object.entries(replacements).reduce(
     (content, [token, value]) => content.split(token).join(value),
-    getEventRegistrationNoticeTemplate(template),
+    getEventRegistrationNoticeTemplate(event.registrationNotice || template),
   );
 }
