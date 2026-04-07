@@ -42,6 +42,34 @@ interface ContentSection {
   published: number;
 }
 
+const PAGE_SECTION_TEMPLATES: Record<
+  string,
+  Array<{
+    sectionKey: string;
+    type: string;
+    content: string;
+    label: string;
+    description: string;
+  }>
+> = {
+  home: [
+    {
+      sectionKey: "news_section_title",
+      type: "text",
+      content: "Senaste nyheterna",
+      label: "Nyhetsrubrik",
+      description: "Rubriken ovanför nyhetskorten på startsidan.",
+    },
+    {
+      sectionKey: "news_section_description",
+      type: "text",
+      content: "Här hittar du de senaste uppdateringarna, nyheterna och händelserna från föreningen.",
+      label: "Nyhetsbeskrivning",
+      description: "Ingressen under nyhetsrubriken på startsidan.",
+    },
+  ],
+};
+
 function SortableItem({ section, onEdit, onDelete, onTogglePublish }: {
   section: ContentSection;
   onEdit: (section: ContentSection) => void;
@@ -157,6 +185,11 @@ export default function PageEditor({ page }: PageEditorProps) {
     }
   }, [contentData]);
 
+  const recommendedSections = PAGE_SECTION_TEMPLATES[page] || [];
+  const missingRecommendedSections = recommendedSections.filter(
+    (template) => !sections.some((section) => section.sectionKey === template.sectionKey),
+  );
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -213,6 +246,16 @@ export default function PageEditor({ page }: PageEditorProps) {
       sectionKey: formData.sectionKey,
       type: formData.type,
       content: formData.content,
+      order: sections.length,
+    });
+  };
+
+  const handleCreateRecommended = (template: (typeof recommendedSections)[number]) => {
+    createContentMutation.mutate({
+      page,
+      sectionKey: template.sectionKey,
+      type: template.type,
+      content: template.content,
       order: sections.length,
     });
   };
@@ -297,6 +340,37 @@ export default function PageEditor({ page }: PageEditorProps) {
           </DialogContent>
         </Dialog>
       </div>
+
+      {missingRecommendedSections.length > 0 ? (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader>
+            <CardTitle className="text-lg">Föreslagna sektioner</CardTitle>
+            <p className="text-sm text-gray-600">
+              De här CMS-fälten används redan av sidan men finns inte skapade ännu.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {missingRecommendedSections.map((template) => (
+              <div
+                key={template.sectionKey}
+                className="flex flex-col gap-3 rounded-lg border border-blue-100 bg-white p-4 md:flex-row md:items-center md:justify-between"
+              >
+                <div>
+                  <p className="font-semibold">{template.label}</p>
+                  <p className="text-sm text-gray-600">{template.description}</p>
+                  <p className="mt-1 text-xs text-gray-500">Nyckel: {template.sectionKey}</p>
+                </div>
+                <Button
+                  onClick={() => handleCreateRecommended(template)}
+                  disabled={createContentMutation.isPending}
+                >
+                  Lägg till
+                </Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {sections.length > 0 ? (
         <DndContext
