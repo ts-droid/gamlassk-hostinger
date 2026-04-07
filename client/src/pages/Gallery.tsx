@@ -191,14 +191,14 @@ export default function Gallery() {
               <DialogTrigger asChild>
                 <Button variant="secondary" size="lg">
                   <Upload className="mr-2 h-5 w-5" />
-                  Ladda upp bild
+                  {getContent("upload_button_label", "Ladda upp bild")}
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Ladda upp bild</DialogTitle>
+                  <DialogTitle>{getContent("upload_dialog_title", "Ladda upp bild")}</DialogTitle>
                   <DialogDescription>
-                    Placera bilden i ett album och märk upp den med taggar för årtal, platser och personer.
+                    {getContent("upload_dialog_description", "Placera bilden i ett album och märk upp den med taggar för årtal, platser och personer.")}
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleFileSelect} className="space-y-4">
@@ -288,15 +288,15 @@ export default function Gallery() {
 
       <div className="container py-8">
         {(albums.length > 0 || tags.length > 0) ? (
-          <div className="mb-8 grid gap-4 md:grid-cols-2">
+            <div className="mb-8 grid gap-4 md:grid-cols-2">
             <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4">
-              <label className="font-medium">Album:</label>
+              <label className="font-medium">{getContent("album_filter_label", "Album:")}</label>
               <Select value={albumFilter} onValueChange={setAlbumFilter}>
                 <SelectTrigger className="w-full sm:w-[240px]">
-                  <SelectValue placeholder="Alla album" />
+                  <SelectValue placeholder={getContent("album_filter_all_label", "Alla album")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Alla album</SelectItem>
+                  <SelectItem value="all">{getContent("album_filter_all_label", "Alla album")}</SelectItem>
                   {albums.map((album) => (
                     <SelectItem key={album} value={album}>
                       {album}
@@ -309,14 +309,14 @@ export default function Gallery() {
             <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4">
               <label className="flex items-center gap-2 font-medium">
                 <Tag className="h-4 w-4" />
-                Tagg:
+                {getContent("tag_filter_label", "Tagg:")}
               </label>
               <Select value={tagFilter} onValueChange={setTagFilter}>
                 <SelectTrigger className="w-full sm:w-[240px]">
-                  <SelectValue placeholder="Alla taggar" />
+                  <SelectValue placeholder={getContent("tag_filter_all_label", "Alla taggar")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Alla taggar</SelectItem>
+                  <SelectItem value="all">{getContent("tag_filter_all_label", "Alla taggar")}</SelectItem>
                   {tags.map((tag) => (
                     <SelectItem key={tag} value={tag}>
                       {tag}
@@ -332,7 +332,7 @@ export default function Gallery() {
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-16">
               <ImageIcon className="mb-4 h-16 w-16 text-gray-300" />
-              <p className="text-lg text-gray-500">Inga bilder att visa</p>
+              <p className="text-lg text-gray-500">{getContent("empty_state_title", "Inga bilder att visa")}</p>
               {canManageGallery ? (
                 <Button
                   variant="outline"
@@ -340,7 +340,7 @@ export default function Gallery() {
                   onClick={() => setUploadDialogOpen(true)}
                 >
                   <Upload className="mr-2 h-4 w-4" />
-                  Ladda upp första bilden
+                  {getContent("empty_state_cta", "Ladda upp första bilden")}
                 </Button>
               ) : null}
             </CardContent>
@@ -386,7 +386,7 @@ export default function Gallery() {
                   <div>
                     <h3 className="font-semibold">{photo.title}</h3>
                     {photo.category ? (
-                      <p className="text-sm text-gray-600">Album: {photo.category}</p>
+                      <p className="text-sm text-gray-600">{getContent("photo_album_prefix", "Album")}: {photo.category}</p>
                     ) : null}
                   </div>
                   {normalizeTags(photo.tags).length > 0 ? (

@@ -25,7 +25,7 @@ export default function Folkspel() {
             onClick={openFolkspel}
           >
             <ShoppingCart className="w-5 h-5 mr-2" />
-            Öppna Folkspels butik
+            {getContent("hero_button_label", "Öppna Folkspels butik")}
             <ExternalLink className="w-4 h-4 ml-2" />
           </Button>
         }
@@ -36,9 +36,9 @@ export default function Folkspel() {
         <div className="max-w-4xl mx-auto">
           <Card className="mb-8">
             <CardHeader>
-              <CardTitle>Så fungerar det</CardTitle>
+              <CardTitle>{getContent("info_title", "Så fungerar det")}</CardTitle>
               <CardDescription>
-                Enkelt sätt att stödja föreningen genom att köpa lotter
+                {getContent("info_description", "Enkelt sätt att stödja föreningen genom att köpa lotter")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -47,36 +47,41 @@ export default function Folkspel() {
                   <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                     <span className="text-2xl font-bold text-blue-900">1</span>
                   </div>
-                  <h3 className="font-semibold mb-2">Välj lotter</h3>
+                  <h3 className="font-semibold mb-2">{getContent("step_1_title", "Välj lotter")}</h3>
                   <p className="text-sm text-gray-600">
-                    Bläddra bland BingoLotto, Sverigelotten, JOYNA och fler
+                    {getContent("step_1_description", "Bläddra bland BingoLotto, Sverigelotten, JOYNA och fler")}
                   </p>
                 </div>
                 <div className="text-center p-4">
                   <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                     <span className="text-2xl font-bold text-blue-900">2</span>
                   </div>
-                  <h3 className="font-semibold mb-2">Köp säkert</h3>
+                  <h3 className="font-semibold mb-2">{getContent("step_2_title", "Köp säkert")}</h3>
                   <p className="text-sm text-gray-600">
-                    Betala tryggt via Folkspels säkra betalningslösning
+                    {getContent("step_2_description", "Betala tryggt via Folkspels säkra betalningslösning")}
                   </p>
                 </div>
                 <div className="text-center p-4">
                   <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                     <span className="text-2xl font-bold text-blue-900">3</span>
                   </div>
-                  <h3 className="font-semibold mb-2">Stöd föreningen</h3>
+                  <h3 className="font-semibold mb-2">{getContent("step_3_title", "Stöd föreningen")}</h3>
                   <p className="text-sm text-gray-600">
-                    En del av intäkterna går direkt till Föreningen Gamla SSK
+                    {getContent("step_3_description", "En del av intäkterna går direkt till Föreningen Gamla SSK")}
                   </p>
                 </div>
               </div>
 
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-6">
-                <p className="text-sm text-yellow-900">
-                  <strong>OBS!</strong> När du klickar på knappen ovan öppnas Folkspels butik i ett nytt fönster. 
-                  Alla köp hanteras säkert av Folkspel, och föreningen får automatiskt provision.
-                </p>
+                <div
+                  className="text-sm text-yellow-900"
+                  dangerouslySetInnerHTML={{
+                    __html: getContent(
+                      "notice_html",
+                      "<p><strong>OBS!</strong> När du klickar på knappen ovan öppnas Folkspels butik i ett nytt fönster. Alla köp hanteras säkert av Folkspel, och föreningen får automatiskt provision.</p>",
+                    ),
+                  }}
+                />
               </div>
             </CardContent>
           </Card>
@@ -84,9 +89,9 @@ export default function Folkspel() {
           {/* Iframe Preview */}
           <Card>
             <CardHeader>
-              <CardTitle>Förhandsvisning av butiken</CardTitle>
+              <CardTitle>{getContent("preview_title", "Förhandsvisning av butiken")}</CardTitle>
               <CardDescription>
-                Se vilka produkter som finns tillgängliga (klicka på knappen ovan för att köpa)
+                {getContent("preview_description", "Se vilka produkter som finns tillgängliga (klicka på knappen ovan för att köpa)")}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -108,7 +113,7 @@ export default function Folkspel() {
               <div className="mt-4 text-center">
                 <Button onClick={openFolkspel} variant="outline">
                   <ExternalLink className="w-4 h-4 mr-2" />
-                  Öppna butiken för att köpa
+                  {getContent("preview_button_label", "Öppna butiken för att köpa")}
                 </Button>
               </div>
             </CardContent>
@@ -116,12 +121,15 @@ export default function Folkspel() {
 
           {/* Additional Info */}
           <div className="mt-8 text-center text-gray-600">
-            <p className="text-sm">
-              Har du frågor om lotteriet? Kontakta oss på{" "}
-              <a href="mailto:info@gamlassk.se" className="text-blue-600 hover:underline">
-                info@gamlassk.se
-              </a>
-            </p>
+            <div
+              className="text-sm"
+              dangerouslySetInnerHTML={{
+                __html: getContent(
+                  "contact_html",
+                  "<p>Har du frågor om lotteriet? Kontakta oss på <a href=\"mailto:info@gamlassk.se\" class=\"text-blue-600 hover:underline\">info@gamlassk.se</a></p>",
+                ),
+              }}
+            />
           </div>
         </div>
       </div>

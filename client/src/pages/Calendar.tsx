@@ -45,7 +45,7 @@ export default function Calendar() {
   const { data: myEvents } = trpc.events.myEvents.useQuery(undefined, {
     enabled: isAuthenticated,
   });
-  const { getContent } = useCMSContent('events');
+  const { getContent: getEventContent } = useCMSContent('events');
 
   const registerMutation = trpc.events.register.useMutation({
     onSuccess: () => {
@@ -102,7 +102,7 @@ export default function Calendar() {
 
   const selectedRegistration = selectedEvent ? getMyRegistration(selectedEvent.id) : null;
   const isRegistered = Boolean(selectedRegistration && selectedRegistration.status !== 'cancelled');
-  const registrationNoticeTemplate = getContent('registration_notice');
+  const registrationNoticeTemplate = getEventContent('registration_notice');
 
   const handleRegister = () => {
     if (!selectedEvent) return;
@@ -209,7 +209,7 @@ export default function Calendar() {
               }}
             >
               <Download className="mr-2 h-4 w-4" />
-              Ladda ner iCal-feed
+              {getCalendarContent('download_feed_label', 'Ladda ner iCal-feed')}
             </Button>
             <Button
               variant="outline"
@@ -217,11 +217,11 @@ export default function Calendar() {
               onClick={() => {
                 const webcalUrl = window.location.origin.replace('http://', 'webcal://').replace('https://', 'webcal://') + '/api/calendar/feed.ics';
                 navigator.clipboard.writeText(webcalUrl);
-                toast.success('Prenumerationslänk kopierad!');
+                toast.success(getCalendarContent('copy_feed_success', 'Prenumerationslänk kopierad!'));
               }}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              Kopiera prenumerationslänk
+              {getCalendarContent('copy_feed_label', 'Kopiera prenumerationslänk')}
             </Button>
           </CardContent>
         </Card>
@@ -231,7 +231,7 @@ export default function Calendar() {
           <CardContent className="p-6">
             {isLoading ? (
               <div className="flex items-center justify-center h-96">
-                <div className="text-gray-500">Laddar kalender...</div>
+                <div className="text-gray-500">{getCalendarContent('loading_text', 'Laddar kalender...')}</div>
               </div>
             ) : (
               <BigCalendar
@@ -347,7 +347,7 @@ export default function Calendar() {
 
                 {/* Add to Calendar Buttons */}
                 <div className="border-t pt-4">
-                  <div className="font-medium mb-3">Lägg till i kalender</div>
+                  <div className="font-medium mb-3">{getCalendarContent('event_add_to_calendar_title', 'Lägg till i kalender')}</div>
                   <div className="flex flex-wrap gap-2">
                     <Button
                       variant="outline"
@@ -355,7 +355,7 @@ export default function Calendar() {
                       onClick={() => addToGoogleCalendar(selectedEvent)}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      Google Calendar
+                      {getCalendarContent('google_calendar_label', 'Google Calendar')}
                     </Button>
                     <Button
                       variant="outline"
@@ -363,7 +363,7 @@ export default function Calendar() {
                       onClick={() => downloadICS(selectedEvent.id, selectedEvent.title)}
                     >
                       <Download className="mr-2 h-4 w-4" />
-                      Ladda ner (.ics)
+                      {getCalendarContent('download_ics_label', 'Ladda ner (.ics)')}
                     </Button>
                   </div>
                 </div>
@@ -375,14 +375,14 @@ export default function Calendar() {
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 text-green-600">
                           <div className="h-2 w-2 bg-green-600 rounded-full" />
-                          <span className="font-medium">Du är anmäld till detta event</span>
+                          <span className="font-medium">{getEventContent('calendar_registered_status_label', 'Du är anmäld till detta event')}</span>
                         </div>
                         <Button
                           variant="outline"
                           onClick={handleCancel}
                           disabled={cancelMutation.isPending}
                         >
-                          Avboka anmälan
+                          {getEventContent('calendar_cancel_registration_label', 'Avboka anmälan')}
                         </Button>
                       </div>
                     ) : (
@@ -391,7 +391,7 @@ export default function Calendar() {
                         disabled={registerMutation.isPending}
                         className="w-full"
                       >
-                        Anmäl dig till eventet
+                        {getEventContent('calendar_register_button_label', 'Anmäl dig till eventet')}
                       </Button>
                     )}
                   </div>
@@ -400,7 +400,7 @@ export default function Calendar() {
                 {!isAuthenticated && (
                   <div className="border-t pt-4">
                     <p className="text-gray-600 text-sm">
-                      Logga in för att anmäla dig till eventet
+                      {getEventContent('calendar_login_prompt_label', 'Logga in för att anmäla dig till eventet')}
                     </p>
                   </div>
                 )}
@@ -417,13 +417,13 @@ export default function Calendar() {
               <DialogHeader>
                 <DialogTitle>Anmäl dig till {selectedEvent.title}</DialogTitle>
                 <DialogDescription>
-                  Bekräfta din anmälan. Uppgifterna sparas i evenemangets deltagarlista i adminpanelen.
+                  {getEventContent('calendar_registration_dialog_description', 'Bekräfta din anmälan. Uppgifterna sparas i evenemangets deltagarlista i adminpanelen.')}
                 </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-4">
                 <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
-                  <div className="mb-2 font-medium">Viktig information före anmälan</div>
+                  <div className="mb-2 font-medium">{getEventContent('registration_notice_title', 'Viktig information före anmälan')}</div>
                   <div
                     className="prose prose-sm max-w-none text-blue-900 prose-p:my-2"
                     dangerouslySetInnerHTML={{
@@ -439,17 +439,17 @@ export default function Calendar() {
                     onCheckedChange={(checked) => setHasAcceptedNotice(checked === true)}
                   />
                   <Label htmlFor="calendar-event-accept" className="text-sm font-normal leading-6">
-                    Jag har läst informationen ovan och vill registrera min anmälan till eventet.
+                    {getEventContent('calendar_registration_accept_label', 'Jag har läst informationen ovan och vill registrera min anmälan till eventet.')}
                   </Label>
                 </div>
 
                 <div>
-                  <Label htmlFor="calendar-event-notes">Meddelande (valfritt)</Label>
+                  <Label htmlFor="calendar-event-notes">{getEventContent('registration_notes_label', 'Meddelande (valfritt)')}</Label>
                   <Textarea
                     id="calendar-event-notes"
                     value={registrationNotes}
                     onChange={(e) => setRegistrationNotes(e.target.value)}
-                    placeholder="T.ex. allergier, specialkost eller annan viktig information"
+                    placeholder={getEventContent('calendar_registration_notes_placeholder', 'T.ex. allergier, specialkost eller annan viktig information')}
                     rows={3}
                   />
                 </div>
@@ -457,13 +457,13 @@ export default function Calendar() {
 
               <DialogFooter>
                 <Button variant="outline" onClick={closeRegistrationDialog}>
-                  Avbryt
+                  {getEventContent('registration_cancel_label', 'Avbryt')}
                 </Button>
                 <Button
                   onClick={handleRegister}
                   disabled={registerMutation.isPending || !hasAcceptedNotice}
                 >
-                  Bekräfta anmälan
+                  {getEventContent('registration_confirm_label', 'Bekräfta anmälan')}
                 </Button>
               </DialogFooter>
             </>
