@@ -121,6 +121,8 @@ export const events = mysqlTable("events", {
   eventTime: varchar("eventTime", { length: 10 }), // e.g., "18:00"
   location: varchar("location", { length: 255 }),
   type: varchar("type", { length: 100 }), // e.g., "Vårfest", "Bingo", "Match"
+  feeAmount: varchar("feeAmount", { length: 20 }),
+  paymentInstructions: text("paymentInstructions"),
   maxParticipants: int("maxParticipants"), // null = unlimited
   registrationDeadline: timestamp("registrationDeadline"),
   status: mysqlEnum("status", ["draft", "published", "cancelled", "completed"]).default("published").notNull(),

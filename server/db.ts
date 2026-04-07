@@ -46,6 +46,11 @@ const GALLERY_SCHEMA_PATCHES = [
   ["tags", "ADD COLUMN `tags` json"],
 ] as const;
 
+const EVENT_SCHEMA_PATCHES = [
+  ["feeAmount", "ADD COLUMN `feeAmount` varchar(20)"],
+  ["paymentInstructions", "ADD COLUMN `paymentInstructions` text"],
+] as const;
+
 const SYSTEM_ROLE_SEEDS = [
   {
     name: "huvudadmin",
@@ -136,6 +141,22 @@ export async function ensureSchemaCompatibility() {
 
       console.log(`[Database] Adding missing gallery_photos column: ${columnName}`);
       await connection.query(`ALTER TABLE \`gallery_photos\` ${statement}`);
+    }
+
+    const [eventColumnsRows] = await connection.query("SHOW COLUMNS FROM `events`");
+    const existingEventColumns = new Set(
+      Array.isArray(eventColumnsRows)
+        ? eventColumnsRows.map((row: any) => String(row.Field))
+        : []
+    );
+
+    for (const [columnName, statement] of EVENT_SCHEMA_PATCHES) {
+      if (existingEventColumns.has(columnName)) {
+        continue;
+      }
+
+      console.log(`[Database] Adding missing events column: ${columnName}`);
+      await connection.query(`ALTER TABLE \`events\` ${statement}`);
     }
 
     await connection.query(`

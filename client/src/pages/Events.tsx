@@ -7,16 +7,23 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
 import { toast } from "sonner";
 import { PageHero, SiteFooter, SiteHeader } from "@/components/SiteChrome";
+import { useCMSContent } from "@/hooks/useCMSContent";
+import { renderEventRegistrationNotice } from "@/lib/eventRegistration";
 
 export default function Events() {
   const { data: eventsData } = trpc.events.list.useQuery();
-  const { data: myEvents } = trpc.events.myEvents.useQuery();
   const { isAuthenticated } = useAuth();
+  const { data: myEvents } = trpc.events.myEvents.useQuery(undefined, {
+    enabled: isAuthenticated,
+  });
+  const { getContent } = useCMSContent("events");
   const [registeringEventId, setRegisteringEventId] = useState<number | null>(null);
   const [notes, setNotes] = useState("");
+  const [hasAcceptedNotice, setHasAcceptedNotice] = useState(false);
 
   const registerMutation = trpc.events.register.useMutation({
     onSuccess: (data) => {
@@ -27,6 +34,7 @@ export default function Events() {
       }
       setRegisteringEventId(null);
       setNotes("");
+      setHasAcceptedNotice(false);
     },
     onError: (error) => {
       toast.error(error.message || "Kunde inte anmäla dig");
@@ -44,6 +52,12 @@ export default function Events() {
 
   const handleRegister = (eventId: number) => {
     registerMutation.mutate({ eventId, notes });
+  };
+
+  const closeRegistrationDialog = () => {
+    setRegisteringEventId(null);
+    setNotes("");
+    setHasAcceptedNotice(false);
   };
 
   const handleCancel = (eventId: number) => {
@@ -84,6 +98,8 @@ export default function Events() {
         return "bg-gray-100 text-gray-800";
     }
   };
+
+  const registrationNoticeTemplate = getContent("registration_notice");
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -142,6 +158,21 @@ export default function Events() {
                     <p className="text-gray-600 mb-4 line-clamp-3">{event.description}</p>
                   )}
 
+                  {(event.feeAmount || event.paymentInstructions) && (
+                    <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-900">
+                      {event.feeAmount && (
+                        <div>
+                          <span className="font-medium">Avgift:</span> {event.feeAmount}
+                        </div>
+                      )}
+                      {event.paymentInstructions && (
+                        <div>
+                          <span className="font-medium">Betalning:</span> {event.paymentInstructions}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {event.maxParticipants && (
                     <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
                       <Users className="h-4 w-4" />
@@ -171,11 +202,15 @@ export default function Events() {
                           </Button>
                         </>
                       ) : (
-                        <Dialog open={registeringEventId === event.id} onOpenChange={(open) => !open && setRegisteringEventId(null)}>
+                        <Dialog open={registeringEventId === event.id} onOpenChange={(open) => !open && closeRegistrationDialog()}>
                           <DialogTrigger asChild>
                             <Button
                               className="w-full"
-                              onClick={() => setRegisteringEventId(event.id)}
+                              onClick={() => {
+                                setRegisteringEventId(event.id);
+                                setNotes("");
+                                setHasAcceptedNotice(false);
+                              }}
                             >
                               <CheckCircle className="mr-2 h-4 w-4" />
                               Anmäl dig
@@ -189,6 +224,30 @@ export default function Events() {
                               </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4">
+                              <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+                                <div className="mb-2 font-medium">Viktig information före anmälan</div>
+                                <div
+                                  className="prose prose-sm max-w-none text-blue-900 prose-p:my-2"
+                                  dangerouslySetInnerHTML={{
+                                    __html: renderEventRegistrationNotice(registrationNoticeTemplate, event),
+                                  }}
+                                />
+                              </div>
+
+                              <div className="flex items-start gap-3 rounded-lg border border-gray-200 p-3">
+                                <Checkbox
+                                  id={`event-accept-${event.id}`}
+                                  checked={hasAcceptedNotice}
+                                  onCheckedChange={(checked) => setHasAcceptedNotice(checked === true)}
+                                />
+                                <Label
+                                  htmlFor={`event-accept-${event.id}`}
+                                  className="text-sm font-normal leading-6"
+                                >
+                                  Jag har läst informationen ovan och förstår att min anmälan registreras i systemet.
+                                </Label>
+                              </div>
+
                               <div>
                                 <Label htmlFor="notes">Meddelande (valfritt)</Label>
                                 <Textarea
@@ -203,13 +262,13 @@ export default function Events() {
                             <DialogFooter>
                               <Button
                                 variant="outline"
-                                onClick={() => setRegisteringEventId(null)}
+                                onClick={closeRegistrationDialog}
                               >
                                 Avbryt
                               </Button>
                               <Button
                                 onClick={() => handleRegister(event.id)}
-                                disabled={registerMutation.isPending}
+                                disabled={registerMutation.isPending || !hasAcceptedNotice}
                               >
                                 Bekräfta anmälan
                               </Button>

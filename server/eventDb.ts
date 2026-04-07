@@ -263,6 +263,8 @@ export async function getUserEvents(userId: number): Promise<Event[]> {
       eventTime: events.eventTime,
       location: events.location,
       type: events.type,
+      feeAmount: events.feeAmount,
+      paymentInstructions: events.paymentInstructions,
       maxParticipants: events.maxParticipants,
       registrationDeadline: events.registrationDeadline,
       status: events.status,

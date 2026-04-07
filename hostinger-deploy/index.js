@@ -181,6 +181,8 @@ var init_schema = __esm({
       location: varchar("location", { length: 255 }),
       type: varchar("type", { length: 100 }),
       // e.g., "Vårfest", "Bingo", "Match"
+      feeAmount: varchar("feeAmount", { length: 20 }),
+      paymentInstructions: text("paymentInstructions"),
       maxParticipants: int("maxParticipants"),
       // null = unlimited
       registrationDeadline: timestamp("registrationDeadline"),
@@ -390,6 +392,17 @@ async function ensureSchemaCompatibility() {
       }
       console.log(`[Database] Adding missing gallery_photos column: ${columnName}`);
       await connection.query(`ALTER TABLE \`gallery_photos\` ${statement}`);
+    }
+    const [eventColumnsRows] = await connection.query("SHOW COLUMNS FROM `events`");
+    const existingEventColumns = new Set(
+      Array.isArray(eventColumnsRows) ? eventColumnsRows.map((row) => String(row.Field)) : []
+    );
+    for (const [columnName, statement] of EVENT_SCHEMA_PATCHES) {
+      if (existingEventColumns.has(columnName)) {
+        continue;
+      }
+      console.log(`[Database] Adding missing events column: ${columnName}`);
+      await connection.query(`ALTER TABLE \`events\` ${statement}`);
     }
     await connection.query(`
       CREATE TABLE IF NOT EXISTS \`password_reset_tokens\` (
@@ -729,7 +742,7 @@ async function deleteDocument(id) {
   if (!db) throw new Error("Database not available");
   await db.delete(documents).where(eq(documents.id, id));
 }
-var _db, USER_SCHEMA_PATCHES, GALLERY_SCHEMA_PATCHES, SYSTEM_ROLE_SEEDS;
+var _db, USER_SCHEMA_PATCHES, GALLERY_SCHEMA_PATCHES, EVENT_SCHEMA_PATCHES, SYSTEM_ROLE_SEEDS;
 var init_db = __esm({
   "server/db.ts"() {
     "use strict";
@@ -751,6 +764,10 @@ var init_db = __esm({
     ];
     GALLERY_SCHEMA_PATCHES = [
       ["tags", "ADD COLUMN `tags` json"]
+    ];
+    EVENT_SCHEMA_PATCHES = [
+      ["feeAmount", "ADD COLUMN `feeAmount` varchar(20)"],
+      ["paymentInstructions", "ADD COLUMN `paymentInstructions` text"]
     ];
     SYSTEM_ROLE_SEEDS = [
       {
@@ -1872,6 +1889,8 @@ async function getUserEvents(userId) {
     eventTime: events.eventTime,
     location: events.location,
     type: events.type,
+    feeAmount: events.feeAmount,
+    paymentInstructions: events.paymentInstructions,
     maxParticipants: events.maxParticipants,
     registrationDeadline: events.registrationDeadline,
     status: events.status,
@@ -2729,6 +2748,8 @@ var appRouter = router({
       eventTime: z2.string().optional(),
       location: z2.string().optional(),
       type: z2.string().optional(),
+      feeAmount: z2.string().optional(),
+      paymentInstructions: z2.string().optional(),
       maxParticipants: z2.number().optional(),
       registrationDeadline: z2.date().optional(),
       status: z2.enum(["draft", "published", "cancelled", "completed"]).optional(),
@@ -2752,6 +2773,8 @@ var appRouter = router({
       eventTime: z2.string().optional(),
       location: z2.string().optional(),
       type: z2.string().optional(),
+      feeAmount: z2.string().optional(),
+      paymentInstructions: z2.string().optional(),
       maxParticipants: z2.number().optional(),
       registrationDeadline: z2.date().optional(),
       status: z2.enum(["draft", "published", "cancelled", "completed"]).optional(),

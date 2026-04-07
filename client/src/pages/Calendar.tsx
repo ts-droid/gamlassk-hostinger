@@ -6,11 +6,16 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Calendar as CalendarIcon, MapPin, Clock, Users, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { PageHero, SiteFooter, SiteHeader } from "@/components/SiteChrome";
+import { useCMSContent } from '@/hooks/useCMSContent';
+import { renderEventRegistrationNotice } from '@/lib/eventRegistration';
 
 const locales = {
   sv: sv,
@@ -30,25 +35,23 @@ export default function Calendar() {
   const [date, setDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [showEventDialog, setShowEventDialog] = useState(false);
+  const [showRegistrationDialog, setShowRegistrationDialog] = useState(false);
+  const [registrationNotes, setRegistrationNotes] = useState('');
+  const [hasAcceptedNotice, setHasAcceptedNotice] = useState(false);
 
   const { data: events, isLoading } = trpc.events.list.useQuery();
-  const [isRegistered, setIsRegistered] = useState(false);
-  
-  // Check registration status when event is selected
-  const checkRegistration = async (eventId: number) => {
-    if (!isAuthenticated) {
-      setIsRegistered(false);
-      return;
-    }
-    // This will be checked via the event details
-    // For now, set to false and let user try to register
-    setIsRegistered(false);
-  };
+  const { data: myEvents } = trpc.events.myEvents.useQuery(undefined, {
+    enabled: isAuthenticated,
+  });
+  const { getContent } = useCMSContent('events');
 
   const registerMutation = trpc.events.register.useMutation({
     onSuccess: () => {
       toast.success('Du är nu anmäld till eventet!');
+      setShowRegistrationDialog(false);
       setShowEventDialog(false);
+      setRegistrationNotes('');
+      setHasAcceptedNotice(false);
     },
     onError: (error) => {
       toast.error(error.message || 'Kunde inte anmäla dig');
@@ -91,9 +94,17 @@ export default function Calendar() {
     setShowEventDialog(true);
   };
 
+  const getMyRegistration = (eventId: number) => {
+    return myEvents?.find((entry) => entry.event?.id === eventId)?.registration;
+  };
+
+  const selectedRegistration = selectedEvent ? getMyRegistration(selectedEvent.id) : null;
+  const isRegistered = Boolean(selectedRegistration && selectedRegistration.status !== 'cancelled');
+  const registrationNoticeTemplate = getContent('registration_notice');
+
   const handleRegister = () => {
     if (!selectedEvent) return;
-    registerMutation.mutate({ eventId: selectedEvent.id });
+    registerMutation.mutate({ eventId: selectedEvent.id, notes: registrationNotes });
   };
 
   const handleCancel = () => {
@@ -132,6 +143,12 @@ export default function Calendar() {
     });
 
     window.open(`https://calendar.google.com/calendar/render?${params.toString()}`, '_blank');
+  };
+
+  const closeRegistrationDialog = () => {
+    setShowRegistrationDialog(false);
+    setRegistrationNotes('');
+    setHasAcceptedNotice(false);
   };
 
   return (
@@ -281,6 +298,21 @@ export default function Calendar() {
                       </div>
                     </div>
                   )}
+
+                  {(selectedEvent.feeAmount || selectedEvent.paymentInstructions) && (
+                    <div className="md:col-span-2 rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+                      {selectedEvent.feeAmount && (
+                        <div>
+                          <span className="font-medium">Avgift:</span> {selectedEvent.feeAmount}
+                        </div>
+                      )}
+                      {selectedEvent.paymentInstructions && (
+                        <div className="mt-1">
+                          <span className="font-medium">Betalning:</span> {selectedEvent.paymentInstructions}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Add to Calendar Buttons */}
@@ -325,7 +357,7 @@ export default function Calendar() {
                       </div>
                     ) : (
                       <Button
-                        onClick={handleRegister}
+                        onClick={() => setShowRegistrationDialog(true)}
                         disabled={registerMutation.isPending}
                         className="w-full"
                       >
@@ -343,6 +375,67 @@ export default function Calendar() {
                   </div>
                 )}
               </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showRegistrationDialog} onOpenChange={(open) => !open && closeRegistrationDialog()}>
+        <DialogContent className="max-w-xl">
+          {selectedEvent && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Anmäl dig till {selectedEvent.title}</DialogTitle>
+                <DialogDescription>
+                  Bekräfta din anmälan. Uppgifterna sparas i evenemangets deltagarlista i adminpanelen.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+                  <div className="mb-2 font-medium">Viktig information före anmälan</div>
+                  <div
+                    className="prose prose-sm max-w-none text-blue-900 prose-p:my-2"
+                    dangerouslySetInnerHTML={{
+                      __html: renderEventRegistrationNotice(registrationNoticeTemplate, selectedEvent),
+                    }}
+                  />
+                </div>
+
+                <div className="flex items-start gap-3 rounded-lg border border-gray-200 p-3">
+                  <Checkbox
+                    id="calendar-event-accept"
+                    checked={hasAcceptedNotice}
+                    onCheckedChange={(checked) => setHasAcceptedNotice(checked === true)}
+                  />
+                  <Label htmlFor="calendar-event-accept" className="text-sm font-normal leading-6">
+                    Jag har läst informationen ovan och vill registrera min anmälan till eventet.
+                  </Label>
+                </div>
+
+                <div>
+                  <Label htmlFor="calendar-event-notes">Meddelande (valfritt)</Label>
+                  <Textarea
+                    id="calendar-event-notes"
+                    value={registrationNotes}
+                    onChange={(e) => setRegistrationNotes(e.target.value)}
+                    placeholder="T.ex. allergier, specialkost eller annan viktig information"
+                    rows={3}
+                  />
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={closeRegistrationDialog}>
+                  Avbryt
+                </Button>
+                <Button
+                  onClick={handleRegister}
+                  disabled={registerMutation.isPending || !hasAcceptedNotice}
+                >
+                  Bekräfta anmälan
+                </Button>
+              </DialogFooter>
             </>
           )}
         </DialogContent>
