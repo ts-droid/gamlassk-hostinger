@@ -44,52 +44,22 @@ function isActivePath(currentPath: string | undefined, href: string) {
   return currentPath === href || currentPath.startsWith(`${href}/`);
 }
 
-function getBrandLines(siteName: string) {
-  if (siteName.includes(" SSK-")) {
-    const [firstPart, secondPart] = siteName.split(" SSK-");
-    return [firstPart.trim(), `SSK-${secondPart}`];
-  }
-
-  const words = siteName.trim().split(/\s+/);
-  if (words.length >= 3) {
-    return [words.slice(0, -1).join(" "), words[words.length - 1]];
-  }
-
-  return [siteName];
-}
-
 export function SiteHeader({ currentPath }: { currentPath?: string }) {
   const { siteLogo, siteName } = useSiteBranding();
   const { isAdmin, isAuthenticated } = useAuth();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const brandLines = getBrandLines(siteName);
 
   return (
     <header className={cn(headerClass, "border-b border-white/10 shadow-[0_8px_24px_rgba(0,0,0,0.18)]")}>
       <div className="h-1 w-full bg-[#0f3f77]" />
       <div className="container mx-auto px-4">
-        <div className="flex min-h-[78px] items-center justify-between gap-3 py-3 lg:grid lg:min-h-[104px] lg:grid-cols-[minmax(250px,320px)_minmax(0,1fr)_auto] lg:items-center lg:gap-8 lg:py-0">
-          <Link href="/" className="flex min-w-0 items-center gap-3 sm:gap-4">
+        <div className="flex min-h-[78px] items-center justify-between gap-3 py-3 lg:grid lg:min-h-[104px] lg:grid-cols-[110px_minmax(0,1fr)_auto] lg:items-center lg:gap-8 lg:py-0">
+          <Link href="/" className="flex items-center">
             <img
               src={siteLogo}
               alt={siteName}
               className="h-[52px] w-[52px] shrink-0 rounded-none object-contain drop-shadow-[0_6px_14px_rgba(0,0,0,0.28)] sm:h-[64px] sm:w-[64px] lg:h-[74px] lg:w-[74px]"
             />
-            <div className="min-w-0">
-              <div className="text-white">
-                {brandLines.map((line) => (
-                  <p
-                    key={line}
-                    className="text-[1rem] font-extrabold leading-[1.02] tracking-tight sm:text-[1.18rem] lg:text-[1.72rem]"
-                  >
-                    {line}
-                  </p>
-                ))}
-              </div>
-              <p className="mt-1 text-[0.72rem] font-semibold text-white/75 sm:text-[0.82rem] lg:text-[0.98rem]">
-                Sveriges äldsta stödförening sedan 1937
-              </p>
-            </div>
           </Link>
 
           <nav className="hidden lg:flex lg:min-w-0 lg:flex-wrap lg:items-center lg:justify-center lg:gap-x-5 lg:gap-y-2 lg:justify-self-center xl:gap-x-8">
