@@ -703,19 +703,19 @@ async function getUserEventRegistration(eventId, userId) {
   const db = await getDb();
   if (!db) return null;
   const { eventRegistrations: eventRegistrations2 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
-  const { eq: eq6, and: and4 } = await import("drizzle-orm");
-  const result = await db.select().from(eventRegistrations2).where(and4(eq6(eventRegistrations2.eventId, eventId), eq6(eventRegistrations2.userId, userId))).limit(1);
+  const { eq: eq6, and: and5 } = await import("drizzle-orm");
+  const result = await db.select().from(eventRegistrations2).where(and5(eq6(eventRegistrations2.eventId, eventId), eq6(eventRegistrations2.userId, userId))).limit(1);
   return result.length > 0 ? result[0] : null;
 }
 async function getUserRegisteredEvents(userId) {
   const db = await getDb();
   if (!db) return [];
   const { events: events2, eventRegistrations: eventRegistrations2 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
-  const { eq: eq6, and: and4, ne } = await import("drizzle-orm");
+  const { eq: eq6, and: and5, ne } = await import("drizzle-orm");
   return await db.select({
     event: events2,
     registration: eventRegistrations2
-  }).from(eventRegistrations2).leftJoin(events2, eq6(eventRegistrations2.eventId, events2.id)).where(and4(eq6(eventRegistrations2.userId, userId), ne(eventRegistrations2.status, "cancelled"))).orderBy(events2.eventDate);
+  }).from(eventRegistrations2).leftJoin(events2, eq6(eventRegistrations2.eventId, events2.id)).where(and5(eq6(eventRegistrations2.userId, userId), ne(eventRegistrations2.status, "cancelled"))).orderBy(events2.eventDate);
 }
 async function getAllDocuments() {
   const db = await getDb();
@@ -1187,7 +1187,9 @@ var init_passwordAuth = __esm({
 var emailService_exports = {};
 __export(emailService_exports, {
   isEmailServiceConfigured: () => isEmailServiceConfigured,
+  sendApplicationConfirmationEmail: () => sendApplicationConfirmationEmail,
   sendEmail: () => sendEmail,
+  sendNewApplicationNotification: () => sendNewApplicationNotification,
   sendPasswordResetEmail: () => sendPasswordResetEmail,
   sendWelcomeEmail: () => sendWelcomeEmail
 });
@@ -1448,6 +1450,137 @@ function generateWelcomeEmailHTML(userName, membershipNumber) {
 </html>
   `.trim();
 }
+function escapeHtml(text2) {
+  return text2.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+async function sendApplicationConfirmationEmail(to, applicantName) {
+  return sendEmail({
+    to,
+    subject: "Vi har mottagit din medlemsans\xF6kan",
+    html: generateApplicationConfirmationHTML(applicantName)
+  });
+}
+async function sendNewApplicationNotification(adminEmails, application) {
+  if (adminEmails.length === 0) {
+    return { success: false, error: "No admin emails configured" };
+  }
+  const results = await Promise.all(
+    adminEmails.map(
+      (adminEmail) => sendEmail({
+        to: adminEmail,
+        subject: `Ny medlemsans\xF6kan: ${application.name}`,
+        html: generateNewApplicationNotificationHTML(application)
+      })
+    )
+  );
+  const anySuccess = results.some((r) => r.success);
+  return anySuccess ? { success: true } : { success: false, error: results[0]?.error || "Failed to send notification" };
+}
+function generateApplicationConfirmationHTML(applicantName) {
+  return `
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Din medlemsans\xF6kan \xE4r mottagen</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <tr>
+            <td style="background-color: #003366; padding: 30px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Tack f\xF6r din ans\xF6kan!</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 40px 30px;">
+              <h2 style="color: #003366; margin-top: 0; font-size: 20px;">Hej ${escapeHtml(applicantName)}!</h2>
+              <p style="color: #333333; line-height: 1.6; margin: 20px 0;">
+                Tack f\xF6r din ans\xF6kan om medlemskap i F\xF6reningen Gamla SSK-are!
+              </p>
+              <p style="color: #333333; line-height: 1.6; margin: 20px 0;">
+                Vi har mottagit din ans\xF6kan och kommer att behandla den inom kort.
+                Du f\xE5r ett e-postmeddelande n\xE4r din ans\xF6kan har behandlats.
+              </p>
+              <p style="color: #333333; line-height: 1.6; margin: 20px 0;">
+                Med v\xE4nliga h\xE4lsningar,<br>
+                F\xF6reningen Gamla SSK-are
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color: #f8f8f8; padding: 20px 30px; text-align: center;">
+              <p style="color: #999999; font-size: 12px; margin: 0;">
+                Detta \xE4r ett automatiskt meddelande, du kan inte svara p\xE5 det.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+function generateNewApplicationNotificationHTML(application) {
+  return `
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ny medlemsans\xF6kan</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <tr>
+            <td style="background-color: #003366; padding: 30px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Ny medlemsans\xF6kan</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 40px 30px;">
+              <p style="color: #333333; line-height: 1.6; margin: 0 0 20px;">
+                En ny medlemsans\xF6kan har kommit in:
+              </p>
+              <table cellpadding="0" cellspacing="0" style="width: 100%; margin: 20px 0;">
+                <tr>
+                  <td style="color: #666666; padding: 8px 0; width: 120px;">Namn:</td>
+                  <td style="color: #333333; padding: 8px 0; font-weight: bold;">${escapeHtml(application.name)}</td>
+                </tr>
+                <tr>
+                  <td style="color: #666666; padding: 8px 0;">E-post:</td>
+                  <td style="color: #333333; padding: 8px 0;">${escapeHtml(application.email)}</td>
+                </tr>
+                <tr>
+                  <td style="color: #666666; padding: 8px 0;">Telefon:</td>
+                  <td style="color: #333333; padding: 8px 0;">${escapeHtml(application.phone || "-")}</td>
+                </tr>
+              </table>
+              ${application.message ? `
+              <p style="color: #666666; margin: 20px 0 5px;">Meddelande:</p>
+              <p style="color: #333333; line-height: 1.6; margin: 0; padding: 15px; background-color: #f8f8f8; border-radius: 4px;">${escapeHtml(application.message)}</p>
+              ` : ""}
+              <p style="color: #333333; line-height: 1.6; margin: 30px 0 0;">
+                Logga in p\xE5 <a href="https://gamlassk.se/admin" style="color: #003366;">admin-panelen</a> f\xF6r att behandla ans\xF6kan.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
 var resend, DEFAULT_FROM_EMAIL;
 var init_emailService = __esm({
   "server/emailService.ts"() {
@@ -1457,87 +1590,16 @@ var init_emailService = __esm({
   }
 });
 
-// server/imageProcessor.ts
-var imageProcessor_exports = {};
-__export(imageProcessor_exports, {
-  getImageDimensions: () => getImageDimensions,
-  processAndUploadImage: () => processAndUploadImage,
-  processMultipleImages: () => processMultipleImages,
-  validateImage: () => validateImage
-});
-import sharp from "sharp";
-import crypto2 from "crypto";
-async function processAndUploadImage(buffer, filename, category = "gallery") {
-  const imageId = crypto2.randomBytes(16).toString("hex");
-  const timestamp2 = Date.now();
-  const baseName = `${category}/${timestamp2}-${imageId}`;
-  try {
-    const metadata = await sharp(buffer).metadata();
-    const originalWebP = await sharp(buffer).webp({ quality: 90 }).toBuffer();
-    const originalKey = `${baseName}-original.webp`;
-    const original = await storagePut(originalKey, originalWebP, "image/webp");
-    const mediumBuffer = await sharp(buffer).resize(800, null, {
-      fit: "inside",
-      withoutEnlargement: true
-    }).webp({ quality: 85 }).toBuffer();
-    const mediumKey = `${baseName}-medium.webp`;
-    const medium = await storagePut(mediumKey, mediumBuffer, "image/webp");
-    const thumbnailBuffer = await sharp(buffer).resize(300, 300, {
-      fit: "cover",
-      position: "center"
-    }).webp({ quality: 80 }).toBuffer();
-    const thumbnailKey = `${baseName}-thumbnail.webp`;
-    const thumbnail = await storagePut(thumbnailKey, thumbnailBuffer, "image/webp");
-    return {
-      original,
-      medium,
-      thumbnail
-    };
-  } catch (error) {
-    console.error("Error processing image:", error);
-    throw new Error("Failed to process image");
-  }
-}
-async function processMultipleImages(images, category = "gallery") {
-  return Promise.all(
-    images.map(
-      ({ buffer, filename }) => processAndUploadImage(buffer, filename, category)
-    )
-  );
-}
-function validateImage(buffer) {
-  return sharp(buffer).metadata().then((metadata) => {
-    if (!metadata.format) return false;
-    const supportedFormats = ["jpeg", "jpg", "png", "webp", "gif", "tiff"];
-    if (!supportedFormats.includes(metadata.format)) return false;
-    if (metadata.width && metadata.width > 1e4) return false;
-    if (metadata.height && metadata.height > 1e4) return false;
-    return true;
-  }).catch(() => false);
-}
-async function getImageDimensions(buffer) {
-  const metadata = await sharp(buffer).metadata();
-  return {
-    width: metadata.width || 0,
-    height: metadata.height || 0
-  };
-}
-var init_imageProcessor = __esm({
-  "server/imageProcessor.ts"() {
-    "use strict";
-    init_storage();
-  }
-});
-
 // server/memberImportExport.ts
 var memberImportExport_exports = {};
 __export(memberImportExport_exports, {
+  exportApplicationsToExcel: () => exportApplicationsToExcel,
   exportMembersToExcel: () => exportMembersToExcel,
   importMembersFromCSV: () => importMembersFromCSV
 });
 import Papa from "papaparse";
 import ExcelJS from "exceljs";
-import { eq as eq3 } from "drizzle-orm";
+import { eq as eq3, desc as desc2 } from "drizzle-orm";
 function validatePersonnummer(personnummer) {
   if (!personnummer) return false;
   const cleaned = personnummer.replace(/[-\s]/g, "");
@@ -1727,11 +1789,123 @@ async function exportMembersToExcel() {
   const buffer = await workbook.xlsx.writeBuffer();
   return Buffer.from(buffer);
 }
+async function exportApplicationsToExcel(status) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+  const applications = status ? await db.select().from(membershipApplications).where(eq3(membershipApplications.status, status)).orderBy(desc2(membershipApplications.createdAt)) : await db.select().from(membershipApplications).orderBy(desc2(membershipApplications.createdAt));
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Medlemsans\xF6kningar");
+  worksheet.columns = [
+    { header: "Namn", key: "name", width: 30 },
+    { header: "E-post", key: "email", width: 30 },
+    { header: "Telefon", key: "phone", width: 15 },
+    { header: "Meddelande", key: "message", width: 40 },
+    { header: "Status", key: "status", width: 12 },
+    { header: "Inl\xE4mnad", key: "createdAt", width: 20 }
+  ];
+  worksheet.getRow(1).font = { bold: true };
+  worksheet.getRow(1).fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFE0E0E0" }
+  };
+  const statusLabels = {
+    pending: "V\xE4ntande",
+    approved: "Godk\xE4nd",
+    rejected: "Avslagen"
+  };
+  applications.forEach((app) => {
+    worksheet.addRow({
+      name: app.name,
+      email: app.email,
+      phone: app.phone,
+      message: app.message,
+      status: statusLabels[app.status] ?? app.status,
+      createdAt: app.createdAt
+    });
+  });
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
+}
 var init_memberImportExport = __esm({
   "server/memberImportExport.ts"() {
     "use strict";
     init_db();
     init_schema();
+  }
+});
+
+// server/imageProcessor.ts
+var imageProcessor_exports = {};
+__export(imageProcessor_exports, {
+  getImageDimensions: () => getImageDimensions,
+  processAndUploadImage: () => processAndUploadImage,
+  processMultipleImages: () => processMultipleImages,
+  validateImage: () => validateImage
+});
+import sharp from "sharp";
+import crypto2 from "crypto";
+async function processAndUploadImage(buffer, filename, category = "gallery") {
+  const imageId = crypto2.randomBytes(16).toString("hex");
+  const timestamp2 = Date.now();
+  const baseName = `${category}/${timestamp2}-${imageId}`;
+  try {
+    const metadata = await sharp(buffer).metadata();
+    const originalWebP = await sharp(buffer).webp({ quality: 90 }).toBuffer();
+    const originalKey = `${baseName}-original.webp`;
+    const original = await storagePut(originalKey, originalWebP, "image/webp");
+    const mediumBuffer = await sharp(buffer).resize(800, null, {
+      fit: "inside",
+      withoutEnlargement: true
+    }).webp({ quality: 85 }).toBuffer();
+    const mediumKey = `${baseName}-medium.webp`;
+    const medium = await storagePut(mediumKey, mediumBuffer, "image/webp");
+    const thumbnailBuffer = await sharp(buffer).resize(300, 300, {
+      fit: "cover",
+      position: "center"
+    }).webp({ quality: 80 }).toBuffer();
+    const thumbnailKey = `${baseName}-thumbnail.webp`;
+    const thumbnail = await storagePut(thumbnailKey, thumbnailBuffer, "image/webp");
+    return {
+      original,
+      medium,
+      thumbnail
+    };
+  } catch (error) {
+    console.error("Error processing image:", error);
+    throw new Error("Failed to process image");
+  }
+}
+async function processMultipleImages(images, category = "gallery") {
+  return Promise.all(
+    images.map(
+      ({ buffer, filename }) => processAndUploadImage(buffer, filename, category)
+    )
+  );
+}
+function validateImage(buffer) {
+  return sharp(buffer).metadata().then((metadata) => {
+    if (!metadata.format) return false;
+    const supportedFormats = ["jpeg", "jpg", "png", "webp", "gif", "tiff"];
+    if (!supportedFormats.includes(metadata.format)) return false;
+    if (metadata.width && metadata.width > 1e4) return false;
+    if (metadata.height && metadata.height > 1e4) return false;
+    return true;
+  }).catch(() => false);
+}
+async function getImageDimensions(buffer) {
+  const metadata = await sharp(buffer).metadata();
+  return {
+    width: metadata.width || 0,
+    height: metadata.height || 0
+  };
+}
+var init_imageProcessor = __esm({
+  "server/imageProcessor.ts"() {
+    "use strict";
+    init_storage();
   }
 });
 
@@ -1751,7 +1925,7 @@ __export(eventDb_exports, {
   registerForEvent: () => registerForEvent,
   updateEvent: () => updateEvent
 });
-import { eq as eq5, and as and3, gte as gte2, desc as desc4, sql as sql4 } from "drizzle-orm";
+import { eq as eq5, and as and4, gte as gte2, desc as desc4, sql as sql4 } from "drizzle-orm";
 async function getAllEvents() {
   const db = await getDb();
   if (!db) return [];
@@ -1763,7 +1937,7 @@ async function getUpcomingEvents2(limit) {
   if (!db) return [];
   const now = /* @__PURE__ */ new Date();
   let query = db.select().from(events).where(
-    and3(
+    and4(
       eq5(events.status, "published"),
       gte2(events.eventDate, now)
     )
@@ -1812,7 +1986,7 @@ async function getEventRegistrationCount(eventId) {
   const db = await getDb();
   if (!db) return 0;
   const result = await db.select({ count: sql4`count(*)` }).from(eventRegistrations).where(
-    and3(
+    and4(
       eq5(eventRegistrations.eventId, eventId),
       eq5(eventRegistrations.status, "registered")
     )
@@ -1823,7 +1997,7 @@ async function isUserRegistered(eventId, userId) {
   const db = await getDb();
   if (!db) return false;
   const result = await db.select().from(eventRegistrations).where(
-    and3(
+    and4(
       eq5(eventRegistrations.eventId, eventId),
       eq5(eventRegistrations.userId, userId),
       eq5(eventRegistrations.status, "registered")
@@ -1874,7 +2048,7 @@ async function cancelEventRegistration(eventId, userId) {
     status: "cancelled",
     cancelledAt: /* @__PURE__ */ new Date()
   }).where(
-    and3(
+    and4(
       eq5(eventRegistrations.eventId, eventId),
       eq5(eventRegistrations.userId, userId)
     )
@@ -1902,7 +2076,7 @@ async function getUserEvents(userId) {
     createdAt: events.createdAt,
     updatedAt: events.updatedAt
   }).from(events).innerJoin(eventRegistrations, eq5(events.id, eventRegistrations.eventId)).where(
-    and3(
+    and4(
       eq5(eventRegistrations.userId, userId),
       eq5(eventRegistrations.status, "registered")
     )
@@ -2281,7 +2455,7 @@ init_schema();
 init_storage();
 import { TRPCError as TRPCError3 } from "@trpc/server";
 import { z as z2 } from "zod";
-import { desc as desc3, eq as eq4, isNotNull, gte, sql as sql3 } from "drizzle-orm";
+import { and as and3, desc as desc3, eq as eq4, isNotNull, gte, sql as sql3 } from "drizzle-orm";
 import crypto3 from "crypto";
 function normalizePermissions2(value) {
   if (Array.isArray(value)) {
@@ -2478,7 +2652,42 @@ var appRouter = router({
     ).mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
+      const existing = await db.select({ id: membershipApplications.id }).from(membershipApplications).where(
+        and3(
+          eq4(membershipApplications.email, input.email),
+          eq4(membershipApplications.status, "pending")
+        )
+      ).limit(1);
+      if (existing.length > 0) {
+        throw new TRPCError3({
+          code: "CONFLICT",
+          message: "Det finns redan en v\xE4ntande ans\xF6kan med denna e-postadress. Vi behandlar den s\xE5 snart vi kan."
+        });
+      }
       await db.insert(membershipApplications).values(input);
+      try {
+        const {
+          isEmailServiceConfigured: isEmailServiceConfigured2,
+          sendApplicationConfirmationEmail: sendApplicationConfirmationEmail2,
+          sendNewApplicationNotification: sendNewApplicationNotification2
+        } = await Promise.resolve().then(() => (init_emailService(), emailService_exports));
+        if (isEmailServiceConfigured2()) {
+          const admins = await db.select({ email: users.email }).from(users).where(and3(eq4(users.role, "admin"), isNotNull(users.email)));
+          const adminEmails = admins.map((a) => a.email).filter((email) => !!email);
+          const [confirmation, notification] = await Promise.all([
+            sendApplicationConfirmationEmail2(input.email, input.name),
+            sendNewApplicationNotification2(adminEmails, input)
+          ]);
+          if (!confirmation.success) {
+            console.error("[Membership] Failed to send confirmation email:", confirmation.error);
+          }
+          if (!notification.success) {
+            console.error("[Membership] Failed to send admin notification:", notification.error);
+          }
+        }
+      } catch (error) {
+        console.error("[Membership] Email notification error:", error);
+      }
       return { success: true };
     }),
     list: manageMembersProcedure.query(async () => {
@@ -2496,6 +2705,18 @@ var appRouter = router({
       if (!db) throw new Error("Database not available");
       await db.update(membershipApplications).set({ status: input.status }).where(eq4(membershipApplications.id, input.id));
       return { success: true };
+    }),
+    exportExcel: manageMembersProcedure.input(
+      z2.object({
+        status: z2.enum(["pending", "approved", "rejected"]).optional()
+      })
+    ).mutation(async ({ input }) => {
+      const { exportApplicationsToExcel: exportApplicationsToExcel2 } = await Promise.resolve().then(() => (init_memberImportExport(), memberImportExport_exports));
+      const buffer = await exportApplicationsToExcel2(input.status);
+      return {
+        data: buffer.toString("base64"),
+        filename: `medlemsansokningar_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.xlsx`
+      };
     })
   }),
   profile: router({

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Check, X } from "lucide-react";
+import { Check, X, Download } from "lucide-react";
 
 export default function MembershipManagement() {
   const utils = trpc.useUtils();
@@ -23,6 +23,35 @@ export default function MembershipManagement() {
     updateStatusMutation.mutate({ id, status });
   };
 
+  const exportMutation = trpc.membership.exportExcel.useMutation({
+    onSuccess: (result) => {
+      // Convert base64 to blob and download
+      const byteCharacters = atob(result.data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = result.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success("Ansökningar exporterade!");
+    },
+    onError: (error) => {
+      toast.error("Export misslyckades: " + error.message);
+    },
+  });
+
   if (isLoading) {
     return <div>Laddar medlemsansökningar...</div>;
   }
@@ -33,8 +62,18 @@ export default function MembershipManagement() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold mb-4">Medlemsansökningar</h2>
-        
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold">Medlemsansökningar</h2>
+          <Button
+            variant="outline"
+            onClick={() => exportMutation.mutate({})}
+            disabled={exportMutation.isPending || !applications?.length}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            {exportMutation.isPending ? "Exporterar..." : "Exportera till Excel"}
+          </Button>
+        </div>
+
         {pendingApplications.length > 0 && (
           <div className="mb-8">
             <h3 className="text-lg font-semibold mb-3">Väntande ansökningar</h3>

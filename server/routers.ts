@@ -6,7 +6,7 @@ import { TRPCError } from "@trpc/server";
 import { getDb, getEventWithRegistrations, getUserEventRegistration, getUserRegisteredEvents } from "./db";
 import { users, news, membershipApplications, roles, galleryPhotos, events, pageContent, siteSettings, boardMembers, contentHistory, documents, paymentConfirmations } from "../drizzle/schema";
 import { z } from "zod";
-import { desc, eq, isNotNull, gte, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, gte, sql } from "drizzle-orm";
 import { storagePut } from "./storage";
 import crypto from "crypto";
 
@@ -264,14 +264,62 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const db = await getDb();
         if (!db) throw new Error("Database not available");
-           await db.insert(membershipApplications).values(input);
-      
-      // TODO: Send email notifications
-      // 1. Send confirmation email to applicant
-      // 2. Send notification email to admins
-      // See EMAIL_SETUP.md for configuration instructions
-      
-      return { success: true };     }),
+
+        // Reject duplicate pending applications for the same email
+        const existing = await db
+          .select({ id: membershipApplications.id })
+          .from(membershipApplications)
+          .where(
+            and(
+              eq(membershipApplications.email, input.email),
+              eq(membershipApplications.status, "pending")
+            )
+          )
+          .limit(1);
+        if (existing.length > 0) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message:
+              "Det finns redan en väntande ansökan med denna e-postadress. Vi behandlar den så snart vi kan.",
+          });
+        }
+
+        await db.insert(membershipApplications).values(input);
+
+        // Send email notifications (best effort — the application is already saved)
+        try {
+          const {
+            isEmailServiceConfigured,
+            sendApplicationConfirmationEmail,
+            sendNewApplicationNotification,
+          } = await import("./emailService");
+
+          if (isEmailServiceConfigured()) {
+            const admins = await db
+              .select({ email: users.email })
+              .from(users)
+              .where(and(eq(users.role, "admin"), isNotNull(users.email)));
+            const adminEmails = admins
+              .map((a) => a.email)
+              .filter((email): email is string => !!email);
+
+            const [confirmation, notification] = await Promise.all([
+              sendApplicationConfirmationEmail(input.email, input.name),
+              sendNewApplicationNotification(adminEmails, input),
+            ]);
+            if (!confirmation.success) {
+              console.error("[Membership] Failed to send confirmation email:", confirmation.error);
+            }
+            if (!notification.success) {
+              console.error("[Membership] Failed to send admin notification:", notification.error);
+            }
+          }
+        } catch (error) {
+          console.error("[Membership] Email notification error:", error);
+        }
+
+        return { success: true };
+      }),
     list: manageMembersProcedure.query(async () => {
       const db = await getDb();
       if (!db) return [];
@@ -295,6 +343,20 @@ export const appRouter = router({
           .set({ status: input.status })
           .where(eq(membershipApplications.id, input.id));
         return { success: true };
+      }),
+    exportExcel: manageMembersProcedure
+      .input(
+        z.object({
+          status: z.enum(["pending", "approved", "rejected"]).optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const { exportApplicationsToExcel } = await import('./memberImportExport');
+        const buffer = await exportApplicationsToExcel(input.status);
+        return {
+          data: buffer.toString('base64'),
+          filename: `medlemsansokningar_${new Date().toISOString().split('T')[0]}.xlsx`,
+        };
       }),
   }),
   profile: router({

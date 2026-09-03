@@ -320,3 +320,179 @@ function generateWelcomeEmailHTML(userName: string, membershipNumber: string): s
 </html>
   `.trim();
 }
+
+/**
+ * Escape user-provided text before embedding it in email HTML
+ */
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Send confirmation email to a membership applicant
+ */
+export async function sendApplicationConfirmationEmail(
+  to: string,
+  applicantName: string
+): Promise<{ success: boolean; error?: string }> {
+  return sendEmail({
+    to,
+    subject: 'Vi har mottagit din medlemsansökan',
+    html: generateApplicationConfirmationHTML(applicantName),
+  });
+}
+
+/**
+ * Send notification email to admins about a new membership application
+ */
+export async function sendNewApplicationNotification(
+  adminEmails: string[],
+  application: {
+    name: string;
+    email: string;
+    phone?: string | null;
+    message?: string | null;
+  }
+): Promise<{ success: boolean; error?: string }> {
+  if (adminEmails.length === 0) {
+    return { success: false, error: 'No admin emails configured' };
+  }
+
+  const results = await Promise.all(
+    adminEmails.map((adminEmail) =>
+      sendEmail({
+        to: adminEmail,
+        subject: `Ny medlemsansökan: ${application.name}`,
+        html: generateNewApplicationNotificationHTML(application),
+      })
+    )
+  );
+
+  const anySuccess = results.some((r) => r.success);
+  return anySuccess
+    ? { success: true }
+    : { success: false, error: results[0]?.error || 'Failed to send notification' };
+}
+
+/**
+ * Generate HTML for applicant confirmation email
+ */
+function generateApplicationConfirmationHTML(applicantName: string): string {
+  return `
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Din medlemsansökan är mottagen</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <tr>
+            <td style="background-color: #003366; padding: 30px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Tack för din ansökan!</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 40px 30px;">
+              <h2 style="color: #003366; margin-top: 0; font-size: 20px;">Hej ${escapeHtml(applicantName)}!</h2>
+              <p style="color: #333333; line-height: 1.6; margin: 20px 0;">
+                Tack för din ansökan om medlemskap i Föreningen Gamla SSK-are!
+              </p>
+              <p style="color: #333333; line-height: 1.6; margin: 20px 0;">
+                Vi har mottagit din ansökan och kommer att behandla den inom kort.
+                Du får ett e-postmeddelande när din ansökan har behandlats.
+              </p>
+              <p style="color: #333333; line-height: 1.6; margin: 20px 0;">
+                Med vänliga hälsningar,<br>
+                Föreningen Gamla SSK-are
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color: #f8f8f8; padding: 20px 30px; text-align: center;">
+              <p style="color: #999999; font-size: 12px; margin: 0;">
+                Detta är ett automatiskt meddelande, du kan inte svara på det.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
+/**
+ * Generate HTML for admin notification email
+ */
+function generateNewApplicationNotificationHTML(application: {
+  name: string;
+  email: string;
+  phone?: string | null;
+  message?: string | null;
+}): string {
+  return `
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ny medlemsansökan</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <tr>
+            <td style="background-color: #003366; padding: 30px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Ny medlemsansökan</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 40px 30px;">
+              <p style="color: #333333; line-height: 1.6; margin: 0 0 20px;">
+                En ny medlemsansökan har kommit in:
+              </p>
+              <table cellpadding="0" cellspacing="0" style="width: 100%; margin: 20px 0;">
+                <tr>
+                  <td style="color: #666666; padding: 8px 0; width: 120px;">Namn:</td>
+                  <td style="color: #333333; padding: 8px 0; font-weight: bold;">${escapeHtml(application.name)}</td>
+                </tr>
+                <tr>
+                  <td style="color: #666666; padding: 8px 0;">E-post:</td>
+                  <td style="color: #333333; padding: 8px 0;">${escapeHtml(application.email)}</td>
+                </tr>
+                <tr>
+                  <td style="color: #666666; padding: 8px 0;">Telefon:</td>
+                  <td style="color: #333333; padding: 8px 0;">${escapeHtml(application.phone || '-')}</td>
+                </tr>
+              </table>
+              ${application.message ? `
+              <p style="color: #666666; margin: 20px 0 5px;">Meddelande:</p>
+              <p style="color: #333333; line-height: 1.6; margin: 0; padding: 15px; background-color: #f8f8f8; border-radius: 4px;">${escapeHtml(application.message)}</p>
+              ` : ''}
+              <p style="color: #333333; line-height: 1.6; margin: 30px 0 0;">
+                Logga in på <a href="https://gamlassk.se/admin" style="color: #003366;">admin-panelen</a> för att behandla ansökan.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}

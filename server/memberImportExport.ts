@@ -1,7 +1,7 @@
 import Papa from 'papaparse';
 import ExcelJS from 'exceljs';
 import { getDb } from './db';
-import { users } from '../drizzle/schema';
+import { users, membershipApplications } from '../drizzle/schema';
 import { eq, sql, desc } from 'drizzle-orm';
 
 export interface MemberImportRow {
@@ -283,6 +283,68 @@ export async function exportMembersToExcel(): Promise<Buffer> {
   });
 
   // Generate buffer
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
+}
+
+/**
+ * Export membership applications to Excel
+ */
+export async function exportApplicationsToExcel(
+  status?: 'pending' | 'approved' | 'rejected'
+): Promise<Buffer> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error('Database not available');
+  }
+
+  const applications = status
+    ? await db
+        .select()
+        .from(membershipApplications)
+        .where(eq(membershipApplications.status, status))
+        .orderBy(desc(membershipApplications.createdAt))
+    : await db
+        .select()
+        .from(membershipApplications)
+        .orderBy(desc(membershipApplications.createdAt));
+
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Medlemsansökningar');
+
+  worksheet.columns = [
+    { header: 'Namn', key: 'name', width: 30 },
+    { header: 'E-post', key: 'email', width: 30 },
+    { header: 'Telefon', key: 'phone', width: 15 },
+    { header: 'Meddelande', key: 'message', width: 40 },
+    { header: 'Status', key: 'status', width: 12 },
+    { header: 'Inlämnad', key: 'createdAt', width: 20 },
+  ];
+
+  worksheet.getRow(1).font = { bold: true };
+  worksheet.getRow(1).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFE0E0E0' },
+  };
+
+  const statusLabels: Record<string, string> = {
+    pending: 'Väntande',
+    approved: 'Godkänd',
+    rejected: 'Avslagen',
+  };
+
+  applications.forEach((app) => {
+    worksheet.addRow({
+      name: app.name,
+      email: app.email,
+      phone: app.phone,
+      message: app.message,
+      status: statusLabels[app.status] ?? app.status,
+      createdAt: app.createdAt,
+    });
+  });
+
   const buffer = await workbook.xlsx.writeBuffer();
   return Buffer.from(buffer);
 }
