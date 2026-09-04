@@ -62,6 +62,13 @@ const runtimePackage = {
     start: "NODE_ENV=production node index.js",
   },
   dependencies,
+  // Pin patched versions of transitive dependencies with known CVEs
+  overrides: {
+    qs: ">=6.16.0",
+    exceljs: {
+      uuid: "^11.1.1",
+    },
+  },
 };
 
 fs.writeFileSync(
